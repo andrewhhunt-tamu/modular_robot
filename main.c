@@ -16,7 +16,7 @@
 // CONFIG2
 #pragma config MCLRE = EXTMCLR  // Master Clear Enable bit (If LVP = 0, MCLR pin is MCLR; If LVP = 1, RA3 pin function is MCLR)
 #pragma config PWRTS = PWRT_OFF // Power-up Timer Selection bits (PWRT is disabled)
-#pragma config WDTE = ON        // WDT Operating Mode bits (WDT enabled regardless of Sleep; SEN bit is ignored)
+#pragma config WDTE = OFF       // WDT Operating Mode bits (WDT disabled; SEN is ignored)
 #pragma config BOREN = ON       // Brown-out Reset Enable bits (Brown-out Reset Enabled, SBOREN bit is ignored)
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection bit (Brown-out Reset Voltage (VBOR) set to 1.9V)
 #pragma config PPS1WAY = ON     // PPSLOCKED One-Way Set Enable bit (The PPSLOCKED bit can be set once after an unlocking sequence is executed; once PPSLOCKED is set, all future changes to PPS registers are prevented)
@@ -41,25 +41,39 @@
 // Use project enums instead of #define for ON and OFF.
 
 #include <xc.h>
-
+#include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "pwm_funcs.h"
+
 #define _XTAL_FREQ 32000000
 
+/*
+    UART RS-485 pg 226
+
+    PWM pg 215
+
+
+*/
 
 /*
- * 
- */
+    Clear bit 3: reg & ~0b00000100
+    set bit 3: reg | 0b00000100
+
+*/
+
 int main(int argc, char** argv) {
-    TRISC = 0x00;
+   TRISC = 0b00000000; // Set PORTC to be outputs
+
+    setup_pwm(33); // Set up the PWM with a duty cycle of 33
     
     while(1)
     {
         RC0 = 1;
-        __delay_ms(10);
+        __delay_ms(100);
         RC0 = 0;
-        __delay_ms(50);
+        __delay_ms(100);
     }
     return (EXIT_SUCCESS);
 }
