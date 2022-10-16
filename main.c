@@ -63,16 +63,23 @@
 
 */
 
+/*
+    PWM setup:
+    setup_pwm(1);               // Set up the PWM for channel 1
+    set_pwm_duty_cycle(1, 45);  // Set the duty cycle to 45
+    pwm_on(1);                  // Turn channel 1 on
+*/
+
 int main(int argc, char** argv) {
    TRISC = 0b00000000; // Set PORTC to be outputs
 
-    setup_pwm(1); // Set up the PWM for channel 1
-    set_pwm_duty_cycle(1, 45); // Set the duty cycle to 45
-    pwm_on(1); // Turn channel 1 on
+    setup_pwm(1);               // Set up the PWM for channel 1
+    set_pwm_duty_cycle(1, 45);  // Set the duty cycle to 45
+    pwm_on(1);                  // Turn channel 1 on
     
-    setup_pwm(2); // Set up the PWM for channel 1
-    set_pwm_duty_cycle(2, 75); // Set the duty cycle to 45
-    pwm_on(2); // Turn channel 1 on
+    setup_pwm(2);               // Set up the PWM for channel 1
+    set_pwm_duty_cycle(2, 75);  // Set the duty cycle to 45
+    pwm_on(2);                  // Turn channel 1 on
     
     while(1)
     {

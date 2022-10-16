@@ -25,34 +25,34 @@ void setup_pwm(uint8_t channel)
         PWM4CON = 0x00;
     }
     
-    T2PR = 0xFF; // Load T2PR register with period of 255
-    set_pwm_duty_cycle(channel, 0); // Set PWM duty cycle to 0;
+    T2PR = 0xFF;                                // Load T2PR register with period of 255
+    set_pwm_duty_cycle(channel, 0);             // Set PWM duty cycle to 0;
     // Timer2 setup
-    PIR1 = PIR1 & ~0b01000000; // Clear TMR2IF flag
-    T2CLKCON = 0b00000001; // Set clock source to Fosc/4
-    T2CON = 0b10000000; // Set Timer2 to be on with no prescaler or postscaler
+    PIR1 = PIR1 & ~0b01000000;                  // Clear TMR2IF flag
+    T2CLKCON = 0b00000001;                      // Set clock source to Fosc/4
+    T2CON = 0b10000000;                         // Set Timer2 to be on with no prescaler or postscaler
     while((PIR1 & 0b01000000) != 0b01000000) {} // Wait until TMR2IF is set
     
     if (channel == 1)
     {
-        PWM3CON = 0b10110000; // Enable PWM3 with polarity inverse
+        PWM3CON = 0b10110000;                   // Enable PWM3 with polarity inverse
     } else if (channel == 2)
     {
-        PWM4CON = 0b10110000; // Enable PWM3 with polarity inverse
+        PWM4CON = 0b10110000;                   // Enable PWM4 with polarity inverse
     }
     
 }
 
-void set_pwm_duty_cycle(uint8_t channel, uint8_t percent)
+void set_pwm_duty_cycle(uint8_t channel, uint32_t percent)
 {
-    uint32_t duty_cycle = (uint32_t) percent * 1024 / 100; // Get percentage of 1024
-    duty_cycle = 1024 - duty_cycle; // get inverse of percentage for PWM3DC
+    uint32_t duty_cycle = 1024 - (percent * 1024 / 100);    // Get inverse percentage of 1024
+    
     if (channel == 1)
     {
-        PWM3DC = (uint16_t) duty_cycle  << 6; // Shift left 6 bits to set PWM3DC
+        PWM3DC = (uint16_t) duty_cycle  << 6;               // Shift left 6 bits to set PWM3DC
     } else if (channel == 2) 
     {
-        PWM4DC = (uint16_t) duty_cycle  << 6; // Shift left 6 bits to set PWM4DC
+        PWM4DC = (uint16_t) duty_cycle  << 6;               // Shift left 6 bits to set PWM4DC
     }
 }
 
@@ -60,14 +60,14 @@ void pwm_on(uint8_t channel)
 {
     if (channel == 1)
     {
-        pwm_off(2); // Make sure channel 2 is off
-        __delay_ms(5);  // Ensure transistors are fully off
-        TRISC = TRISC & ~PWMPORT1; // Set PORTC1 to output
+        pwm_off(2);                 // Make sure channel 2 is off
+        __delay_ms(5);              // Ensure transistors are fully off
+        TRISC = TRISC & ~PWMPORT1;  // Set PORTC1 to output
     } else if (channel == 2)
     {
-        pwm_off(1); // Make sure channel 1 is off
-        __delay_ms(5); // Ensure transistors are fully off
-        TRISC = TRISC & ~PWMPORT2; // Set PORTC1 to output
+        pwm_off(1);                 // Make sure channel 1 is off
+        __delay_ms(5);              // Ensure transistors are fully off
+        TRISC = TRISC & ~PWMPORT2;  // Set PORTC1 to output
     }
     
 }
@@ -76,9 +76,9 @@ void pwm_off(uint8_t channel)
 {
     if (channel == 1)
     {
-        TRISC = TRISC | PWMPORT1; // Set PORTC1 to not be an output
+        TRISC = TRISC | PWMPORT1;   // Set PORTC1 to not be an output
     } else if (channel == 2) {
-        TRISC = TRISC | PWMPORT2; // Set PORTC1 to not be an output
+        TRISC = TRISC | PWMPORT2;   // Set PORTC1 to not be an output
     }
 }
 
