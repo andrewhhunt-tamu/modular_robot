@@ -46,6 +46,7 @@
 #include <stdlib.h>
 
 #include "pwm_funcs.h"
+#include "motor_control.h"
 
 #define _XTAL_FREQ 32000000
 
@@ -65,31 +66,34 @@
 
 /*
     PWM setup:
+    setup_timer();              // Set up timer 2 for PWM
     setup_pwm(1);               // Set up the PWM for channel 1
     set_pwm_duty_cycle(1, 45);  // Set the duty cycle to 45
     pwm_on(1);                  // Turn channel 1 on
 */
 
 int main(int argc, char** argv) {
-   TRISC = 0b00000000; // Set PORTC to be outputs
+    PORTC = 0x00;
+    LATC = 0x00;
+    ANSELC = 0x00;
+    //INLVLC = 0x00;
+    SLRCONC = 0x00;
+    TRISC = 0x00;
 
-    setup_pwm(1);               // Set up the PWM for channel 1
-    set_pwm_duty_cycle(1, 45);  // Set the duty cycle to 45
-    pwm_on(1);                  // Turn channel 1 on
-    
-    setup_pwm(2);               // Set up the PWM for channel 1
-    set_pwm_duty_cycle(2, 75);  // Set the duty cycle to 45
-    pwm_on(2);                  // Turn channel 1 on
+    motor_setup();
+    motor_forward(30);
     
     while(1)
     {
         RC0 = 1;
-        pwm_on(1);
+        motor_forward(65);
         __delay_ms(1000);
+        
         RC0 = 0;
-        pwm_on(2);
+        motor_reverse(45);
         __delay_ms(1000);
     }
+
     return (EXIT_SUCCESS);
 }
 

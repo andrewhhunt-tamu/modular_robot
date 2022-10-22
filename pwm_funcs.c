@@ -7,38 +7,56 @@
 
 #include "pwm_funcs.h"
 
-#define PWMPORT1 0b00000010;
-#define PWMPORT2 0b00000100;
+
+
+#define PWMPORT1 TRISC2    // C2
+#define PWMPORT2 TRISC4    // C4
+
+uint8_t ch1_duty = 0;
+uint8_t ch2_duty = 0;
+
+void setup_timer()
+{
+    // Timer2 setup
+    T2PR = 0xFF;                                // Load T2PR register with period of 255
+    PIR1 = PIR1 & ~0b01000000;                  // Clear TMR2IF flag
+    T2CLKCON = 0b00000001;                      // Set clock source to Fosc/4
+    T2CON = 0b10000000;                         // Set Timer2 to be on with no prescaler or postscaler
+    while((PIR1 & 0b01000000) != 0b01000000) {} // Wait until TMR2IF is set
+}
 
 void setup_pwm(uint8_t channel)
 {
     // page 215 setup PWM
     // PWM set up
-    pwm_off(channel);
     if (channel == 1)
     {
-        RC1PPS = 0x03; // Set PortC1 to be PWM3
-        PWM3CON = 0x00; // Clear the PWM3CON register
-    } else if (channel == 2)
+        TRISC2 = 1;         // Set Port C2 to tristate
+        RC2PPS = 0x03;      // Set PortC2 to be PWM3
+        PWM3CON = 0x00;     // Clear the PWM3CON register
+    }
+    else if (channel == 2)
     {
-        RC2PPS = 0x04; // Set PortC2 to be PWM4
-        PWM4CON = 0x00;
+        TRISC4 = 1;         // Set Port C4 to tristate
+        RC4PPS = 0x04;      // Set PortC4 to be PWM4
+        PWM4CON = 0x00;     // Clear the PWM4CON register
     }
     
-    T2PR = 0xFF;                                // Load T2PR register with period of 255
-    set_pwm_duty_cycle(channel, 0);             // Set PWM duty cycle to 0;
-    // Timer2 setup
-    PIR1 = PIR1 & ~0b01000000;                  // Clear TMR2IF flag
-    T2CLKCON = 0b00000001;                      // Set clock source to Fosc/4
-    T2CON = 0b10000000;                         // Set Timer2 to be on with no prescaler or postscaler
-    while((PIR1 & 0b01000000) != 0b01000000) {} // Wait until TMR2IF is set
+    set_pwm_duty_cycle(channel, 0);             // Set PWM duty cycle to 0, or high
     
     if (channel == 1)
     {
-        PWM3CON = 0b10110000;                   // Enable PWM3 with polarity inverse
-    } else if (channel == 2)
+        TRISC2 = 0;     // C2 is set to output
+        PWM3EN = 1;     // PWM2 enable
+        PWM3OUT = 1;    // PM3 Output
+        PWM3POL = 0;    // PM3 polarity inversed
+    }
+    else if (channel == 2)
     {
-        PWM4CON = 0b10110000;                   // Enable PWM4 with polarity inverse
+        TRISC4 = 0;     // C4 is set to output
+        PWM4EN = 1;     // PWM4 enabled
+        PWM4OUT = 1;    // PWM4 output
+        PWM4POL = 0;    // PWM4 polarity inversed
     }
     
 }
@@ -49,25 +67,30 @@ void set_pwm_duty_cycle(uint8_t channel, uint32_t percent)
     
     if (channel == 1)
     {
-        PWM3DC = (uint16_t) duty_cycle  << 6;               // Shift left 6 bits to set PWM3DC
+        PWM3DC = (uint16_t) duty_cycle  << 6;   // Shift left 6 bits to set PWM3DC
     } else if (channel == 2) 
     {
-        PWM4DC = (uint16_t) duty_cycle  << 6;               // Shift left 6 bits to set PWM4DC
+        PWM4DC = (uint16_t) duty_cycle  << 6;   // Shift left 6 bits to set PWM4DC
     }
 }
 
-void pwm_on(uint8_t channel)
+/*
+    pmos need inverse PWM, nmos will just be digital signals.
+    Need to make sure there is a 1ms delay between turning any transistor off
+    and turning any others on to prevent short circuit.
+
+*/
+
+void pwm_on(uint8_t channel, uint8_t duty_cycle)
 {
     if (channel == 1)
     {
-        pwm_off(2);                 // Make sure channel 2 is off
-        __delay_ms(5);              // Ensure transistors are fully off
-        TRISC = TRISC & ~PWMPORT1;  // Set PORTC1 to output
+        set_pwm_duty_cycle(channel, duty_cycle);
+        RC2PPS = 0x03;      // Set PortC2 to be PWM3
     } else if (channel == 2)
     {
-        pwm_off(1);                 // Make sure channel 1 is off
-        __delay_ms(5);              // Ensure transistors are fully off
-        TRISC = TRISC & ~PWMPORT2;  // Set PORTC1 to output
+        set_pwm_duty_cycle(channel, duty_cycle);
+        RC4PPS = 0x04;      // Set PortC4 to be PWM4
     }
     
 }
@@ -76,9 +99,12 @@ void pwm_off(uint8_t channel)
 {
     if (channel == 1)
     {
-        TRISC = TRISC | PWMPORT1;   // Set PORTC1 to not be an output
+        RC2 = 1;            // Set output high
+        RC2PPS = 0x00;      // Set C2 to be digital ouput
     } else if (channel == 2) {
-        TRISC = TRISC | PWMPORT2;   // Set PORTC1 to not be an output
+        RC4 = 1;            // Set output high
+        RC4PPS = 0x00;      // Set C4 to be digital output
+        
     }
 }
 
