@@ -34,9 +34,9 @@ uint8_t state = 0;
 void motor_setup(void)
 {
     RC1 = 0;
-    RC2 = 1;
+    RC2 = 0;
     RC3 = 0;
-    RC4 = 1;
+    RC4 = 0;
     RC1PPS = 0x00;  // C1 source is Latch C1
     RC2PPS = 0x00;  // C2 source is Latch C2
     RC3PPS = 0x00;  // C3 source is Latch C3
@@ -67,7 +67,7 @@ void motor_forward(uint8_t speed)
         __delay_us(100);    // Delay to ensure all the transistors are off
 
         pwm_on(1, speed);
-        RC3 = 1;
+        RC3 = 0;
         state = FORWARD;
     }
 }
@@ -87,7 +87,7 @@ void motor_reverse(uint8_t speed)
         __delay_us(100);    // Delay to ensure all the transistors are off
 
         pwm_on(2, speed);
-        RC1 = 1;
+        RC1 = 0;
         state = REVERSE;
     }
 }

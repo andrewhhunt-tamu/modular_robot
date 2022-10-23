@@ -18,11 +18,11 @@ uint8_t ch2_duty = 0;
 void setup_timer()
 {
     // Timer2 setup
-    T2PR = 0xFF;                                // Load T2PR register with period of 255
-    PIR1 = PIR1 & ~0b01000000;                  // Clear TMR2IF flag
-    T2CLKCON = 0b00000001;                      // Set clock source to Fosc/4
-    T2CON = 0b10000000;                         // Set Timer2 to be on with no prescaler or postscaler
-    while((PIR1 & 0b01000000) != 0b01000000) {} // Wait until TMR2IF is set
+    T2PR = 0xFF;                 // Load T2PR register with period of 255
+    TMR2IF = 0;                  // Clear TMR2IF flag
+    T2CLKCON = 0b00000001;       // Set clock source to Fosc/4
+    T2CON = 0b10000000;          // Set Timer2 to be on with no prescaler or postscaler
+    while(TMR2IF != 1) {}         // Wait until TMR2IF is set
 }
 
 void setup_pwm(uint8_t channel)
@@ -42,21 +42,21 @@ void setup_pwm(uint8_t channel)
         PWM4CON = 0x00;     // Clear the PWM4CON register
     }
     
-    set_pwm_duty_cycle(channel, 0);             // Set PWM duty cycle to 0, or high
+    set_pwm_duty_cycle(channel, 0);     // Set PWM duty cycle to 0, or high
     
     if (channel == 1)
     {
         TRISC2 = 0;     // C2 is set to output
         PWM3EN = 1;     // PWM2 enable
         PWM3OUT = 1;    // PM3 Output
-        PWM3POL = 0;    // PM3 polarity inversed
+        PWM3POL = 1;    // PM3 polarity normal
     }
     else if (channel == 2)
     {
         TRISC4 = 0;     // C4 is set to output
         PWM4EN = 1;     // PWM4 enabled
         PWM4OUT = 1;    // PWM4 output
-        PWM4POL = 0;    // PWM4 polarity inversed
+        PWM4POL = 1;    // PWM4 polarity normal
     }
     
 }
@@ -99,10 +99,10 @@ void pwm_off(uint8_t channel)
 {
     if (channel == 1)
     {
-        RC2 = 1;            // Set output high
+        RC2 = 0;            // Set output high
         RC2PPS = 0x00;      // Set C2 to be digital ouput
     } else if (channel == 2) {
-        RC4 = 1;            // Set output high
+        RC4 = 0;            // Set output high
         RC4PPS = 0x00;      // Set C4 to be digital output
         
     }
