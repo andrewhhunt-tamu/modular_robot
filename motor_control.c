@@ -29,7 +29,7 @@
 #define COAST   3
 #define BRAKE   4
 uint8_t state;
-uint8_t update, message, new_state;
+uint8_t update, message, new_state, new_speed, check;
 
 
 void motor_setup(void)
@@ -54,7 +54,9 @@ void motor_setup(void)
     motor_coast();
 
     update = 0;
-    new_state;
+    new_state = 0;
+    new_speed = 0;
+    check = 0;
 }
 
 void motor_forward(uint8_t speed)
@@ -133,6 +135,8 @@ void motor_receive_uart(void)
     {
         update = 0;     // Message over
         new_state = 0;  // Reset new state variable
+        new_speed = 0;
+        check = 0;
     }
     else if (message == 128)
     {
@@ -151,14 +155,27 @@ void motor_receive_uart(void)
             // check message value and set the state
 
             // TESTING
-            uart_send(message);
+            //uart_send(message);
+        }
+        else if (new_speed == 0)
+        {
+            // state already set, set speed
+            new_speed = message;
+            check = new_state ^ new_speed;
+
+            // TESTING
+            //uart_send(message ^ new_state);
         }
         else
         {
-            // state already set, set speed
-
-            // TESTING
-            uart_send(message);
+            if (check == message)
+            {
+                uart_send(check);   // Message is good
+            }
+            else
+            {
+                uart_send(0xEA);    // Message bad
+            }
         }
     }
 }
