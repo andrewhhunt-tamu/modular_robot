@@ -1,0 +1,11 @@
+4 bytes
+1: Address with MSB set to 1
+2: State - 4 states: forward, reverse, brake, coast
+3: Speed - 0-100
+4: End - 01111110
+
+Response
+3 bytes
+1: Address of Rpi
+2: Error check of command? XOR of state and speed?
+4: End
