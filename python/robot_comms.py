@@ -48,8 +48,9 @@ class robot_comms:
                     else:
                         data.append(new_byte) # Add data to array
                 else:
-                    if new_byte == self.address:
-                        address_good = True # Address belongs to RPi
+                    if (new_byte >> 7) == 1:                    # Check if an address byte
+                        if (new_byte & 127) == self.address:    # Check for the correct address
+                            address_good = True                 # Address belongs to RPi
                 
         if data:
             #print('Total time: ', total_time)

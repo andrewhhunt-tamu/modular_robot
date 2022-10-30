@@ -22,8 +22,6 @@ void setup_uart(uint8_t address)
     mcu_address = address;
 
     RC1IE = 1;  // Enable UART recieve interrupt
-    //TX1IE = 1;
-    
 
     // 115200 baud rate
     SP1BRG = 68;    // Set baud rate generator for 115200
@@ -34,16 +32,15 @@ void setup_uart(uint8_t address)
 
     // Transmit
     RA5PPS = 0x05;  // Transmit pin
-    TX9 = 0;        // 9 bit transmission
+    TX9 = 0;        // 8 bit transmission
     SCKP = 0;       // Set clock polarity
     TXEN = 1;       // Enable transmission
 
     // Receive
-    RX1PPSbits.PORT = 0;    // Port A
-    RX1PPSbits.PIN = 4;     // Pin 4
-    //RX1PPS = RA4;                       // Receive pin
-    ANSELA = 0;//ANSELA & ~(0b00010000);    // Clear ansel for A4
-    RX9 = 0;                            // Enable receiving 9 bits
+    RX1PPSbits.PORT = 0;                // Receive on port A
+    RX1PPSbits.PIN = 4;                 // Receive on pin 4
+    ANSELA = ANSELA & ~(0b00010000);    // Clear ansel for A4
+    RX9 = 0;                            // Disable receiving 9 bits
     ADDEN = 0;                          // Enable Address 
     CREN = 1;                           // Enable continuous receive
 }
@@ -57,9 +54,9 @@ uint8_t uart_receive(void)
 
     if ((FERR == 0) & (OERR == 0))  // No frame error or overrun
     {    
-        if (((message & 128) >> 7) == 1)
+        if (((message & 128) >> 7) == 1)    // Check if this is an address byte
         {
-            recv_address = message & 127;   // remove msb
+            recv_address = message & 127;   // remove msb to get address
 
             if (mcu_address == recv_address)
             {
@@ -75,7 +72,7 @@ uint8_t uart_receive(void)
         {
             if (message == 126)
             {
-                addr_good = 0;  // Message end, stop reading messages
+                addr_good = 0;  // Message end check addr in further messages
                 return 130;     // End token received
             }
             else
@@ -92,8 +89,7 @@ uint8_t uart_receive(void)
     }
 }
 
-void uart_send(uint16_t data)
+void uart_send(uint8_t data)
 {
-    //TX9D = data >> 8;       // Send 9th bit
-    TX1REG = data & 0xff;   // Send data byte
+    TX1REG = data;   // Send data byte
 }

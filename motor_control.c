@@ -21,6 +21,8 @@
 
 */
 
+#define PI_ADDRESS 1
+
 #define NMOS1 RC1    // C1
 #define NMOS2 RC3    // C3
 
@@ -177,11 +179,11 @@ void motor_receive_uart(void)
 
                 // Set the check byte back to the RPi so it knows
                 // the message was received properly
-                uart_send(1);       // Address of RPi
-                while(!TRMT) {  }
-                uart_send(check);   // Message is good
-                while(!TRMT) {  }
-                uart_send(126);     // End of Frame
+                uart_send(128 + PI_ADDRESS);    // Address of RPi
+                while(!TRMT) {  }               // Wait until transmission is done
+                uart_send(check);               // Message is good
+                while(!TRMT) {  }               // Wait until transmission is done
+                uart_send(126);                 // End of Frame
             }
             else
             {

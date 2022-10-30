@@ -10,7 +10,7 @@
 
 void setup_uart(uint8_t address);
 uint8_t uart_receive(void);
-void uart_send(uint16_t data);
+void uart_send(uint8_t data);
 
 
 

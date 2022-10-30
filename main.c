@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     motor_forward(30);
 
     setup_uart(MCU_ADDRESS); // set up UART with address
-    uart_send(0x135);   // Transmit 0x135 as a test
+    //uart_send(0x35);   // Transmit 0x135 as a test
     
     while(1)
     {
