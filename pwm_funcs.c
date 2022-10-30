@@ -7,15 +7,10 @@
 
 #include "pwm_funcs.h"
 
-
-
-#define PWMPORT1 TRISC2    // C2
-#define PWMPORT2 TRISC4    // C4
-
 uint8_t ch1_duty = 0;
 uint8_t ch2_duty = 0;
 
-void setup_timer()
+void setup_timer(void)
 {
     // Timer2 setup
     T2PR = 0xFF;                 // Load T2PR register with period of 255

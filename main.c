@@ -15,7 +15,7 @@
 
 // CONFIG2
 #pragma config MCLRE = EXTMCLR  // Master Clear Enable bit (If LVP = 0, MCLR pin is MCLR; If LVP = 1, RA3 pin function is MCLR)
-#pragma config PWRTS = PWRT_OFF // Power-up Timer Selection bits (PWRT is disabled)
+#pragma config PWRTS = PWRT_16  // Power-up Timer Selection bits (PWRT set at 16 ms)
 #pragma config WDTE = OFF       // WDT Operating Mode bits (WDT disabled; SEN is ignored)
 #pragma config BOREN = ON       // Brown-out Reset Enable bits (Brown-out Reset Enabled, SBOREN bit is ignored)
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection bit (Brown-out Reset Voltage (VBOR) set to 1.9V)
@@ -41,21 +41,23 @@
 // Use project enums instead of #define for ON and OFF.
 
 #include <xc.h>
+
+
 #include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "pwm_funcs.h"
 #include "motor_control.h"
+#include "uart.h"
 
 #define _XTAL_FREQ 32000000
 
 /*
     UART RS-485 pg 226
-
     PWM pg 215
 
-
+    Capture/Compare for sensor?
 */
 
 /*
@@ -72,28 +74,69 @@
     pwm_on(1);                  // Turn channel 1 on
 */
 
+#define MCU_ADDRESS 3
+
 int main(int argc, char** argv) {
-    PORTC = 0x00;
-    LATC = 0x00;
-    ANSELC = 0x00;
+    // Interrupt setup
+    PIE0 = 0x00;    // Disable all external interrupts
+    PIE1 = 0x00;
+    PIE2 = 0x00;
+    //INTF = 0;
+    GIE = 1;    // Enable global interrupts
+    PEIE = 1;   // Enable peripheral interrupts
+    INTEDG = 1; // Interrupts on rising edge
+
+    // PortC setup
+    PORTC = 0x00;   // Set port c to 0
+    LATC = 0x00;    // Set latch c to 0
+    ANSELC = 0x00;  // Disable analog for port c
     //INLVLC = 0x00;
     SLRCONC = 0x00;
-    TRISC = 0x00;
+    TRISC = 0x00;   // set all c outputs to 0
 
     motor_setup();
     motor_forward(30);
+
+    setup_uart(MCU_ADDRESS); // set up UART with address
+    uart_send(0x135);   // Transmit 0x135 as a test
     
     while(1)
     {
         RC0 = 1;
         motor_forward(65);
+
+        //uart_send(0x17);   // Transmit 0x135 as a test
+
         __delay_ms(1000);
         
         RC0 = 0;
         motor_reverse(45);
         __delay_ms(1000);
+
+        
     }
 
     return (EXIT_SUCCESS);
 }
 
+// Interrupt code
+void __interrupt() uart_int(void)
+{
+    // Need to disable interrupts besides RC1
+    
+    
+    if (RC1IF == 1) // Check if interrupt is a UART receive
+    {
+        // Data is available in RC1REG
+        // Read RC1REG to clear the flag
+        //uart_receive();
+        uart_send(RC1REG);
+    }
+    else
+    {
+        //TX1IF = 0;
+        //uart_send(0x55);
+    }
+
+    
+}

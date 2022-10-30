@@ -8,6 +8,9 @@
 #ifndef UART_H
 #define	UART_H
 
+void setup_uart(uint8_t address);
+void uart_receive(void);
+void uart_send(uint16_t data);
 
 
 

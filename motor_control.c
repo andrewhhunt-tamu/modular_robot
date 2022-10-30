@@ -3,11 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define _XTAL_FREQ 32000000
-
 #include "motor_control.h"
 #include "pwm_funcs.h"
 
+#define _XTAL_FREQ 32000000
 /*
     AP = C4
     AN = C3
@@ -28,11 +27,12 @@
 #define REVERSE 2
 #define COAST   3
 #define BRAKE   4
-uint8_t state = 0;
+uint8_t state;
 
 
 void motor_setup(void)
 {
+    
     RC1 = 0;
     RC2 = 0;
     RC3 = 0;
