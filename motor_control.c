@@ -5,6 +5,7 @@
 
 #include "motor_control.h"
 #include "pwm_funcs.h"
+#include "uart.h"
 
 #define _XTAL_FREQ 32000000
 /*
@@ -28,6 +29,7 @@
 #define COAST   3
 #define BRAKE   4
 uint8_t state;
+uint8_t update, message, new_state;
 
 
 void motor_setup(void)
@@ -50,6 +52,9 @@ void motor_setup(void)
     setup_pwm(1);
     setup_pwm(2);
     motor_coast();
+
+    update = 0;
+    new_state;
 }
 
 void motor_forward(uint8_t speed)
@@ -114,4 +119,46 @@ void motor_ground_cutoff(void)
 {
     RC1 = 0;
     RC3 = 0;
+}
+
+void motor_receive_uart(void)
+{
+    message = uart_receive();
+
+    if (message == 129)
+    {
+        update = 1;      // Address good, updating state
+    }
+    else if (message == 130)
+    {
+        update = 0;     // Message over
+        new_state = 0;  // Reset new state variable
+    }
+    else if (message == 128)
+    {
+        uart_send(199);
+    }
+    else if (message == 131)
+    {
+        // An error has occurred, ask for a new message
+        uart_send(198);
+    }
+    else
+    {
+        if (new_state == 0)
+        {
+            new_state = message;
+            // check message value and set the state
+
+            // TESTING
+            uart_send(message);
+        }
+        else
+        {
+            // state already set, set speed
+
+            // TESTING
+            uart_send(message);
+        }
+    }
 }

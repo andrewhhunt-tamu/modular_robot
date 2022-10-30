@@ -74,6 +74,14 @@
     pwm_on(1);                  // Turn channel 1 on
 */
 
+
+
+#define MOTOR 1
+#define ARM 2
+#define SENSOR 3
+
+// Set module type and MCU address
+uint8_t module_type = MOTOR;
 #define MCU_ADDRESS 3
 
 int main(int argc, char** argv) {
@@ -129,8 +137,11 @@ void __interrupt() uart_int(void)
     {
         // Data is available in RC1REG
         // Read RC1REG to clear the flag
-        //uart_receive();
-        uart_send(RC1REG);
+        if (module_type == MOTOR)
+        {
+            motor_receive_uart();
+        }
+        
     }
     else
     {

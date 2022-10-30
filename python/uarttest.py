@@ -1,18 +1,20 @@
 import serial
-#import serial.rs485
 
 ser = serial.Serial("/dev/ttyS0", 115200)
-#ser.rs485_mode = serial.rs485.RS485Settings()
 
-#ser = serial.rs485.RS485(port='/dev/ttyS0', baudrate=115200)
-#ser.write('testing'.encode('utf-8'))
 
-send = 'A'.encode('utf-8')
-print('Sending: ' + str(send))
-ser.write(send)
-x = ser.read()
 
-#while(x == b'\x00'):
-#    x = ser.read()
+address = 3
+state = int(input('Motor state: '))
+speed = int(input('Motor speed: '))
+print('Sending:\naddress: {}, state: {}, speed: {}'.format(address, state, speed))
 
-print('Received: ' + str(x))
+ser.write((128 + address).to_bytes(1,'big'))
+ser.write(state.to_bytes(1,'big'))
+ser.write(speed.to_bytes(1,'big'))
+
+rec_state = int.from_bytes(ser.read(), 'big')
+rec_speed = int.from_bytes(ser.read(), 'big')
+
+print('Received:\nstate: {}, speed {}'.format(rec_state, rec_speed))
+

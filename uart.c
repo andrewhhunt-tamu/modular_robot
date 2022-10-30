@@ -14,7 +14,8 @@
 
 */
 
-uint8_t mcu_address;
+uint8_t mcu_address, recv_address, message, addr_good = 0;
+
 
 void setup_uart(uint8_t address)
 {
@@ -47,26 +48,45 @@ void setup_uart(uint8_t address)
     CREN = 1;                           // Enable continuous receive
 }
 
-// Does this need to return anything?0
-void uart_receive(void)
+uint8_t uart_receive(void)
 {
+    message = RC1REG;
+
     if ((FERR == 0) & (OERR == 0))  // No frame error or overrun
+    {    
+        if (((message & 128) >> 7) == 1)
         {
-            if (ADDEN)  // Address is enabled
+            recv_address = message & 127;   // remove msb
+
+            if (mcu_address == recv_address)
             {
-                // check address
-                uint8_t received_address = RC1REG;
-                if (mcu_address == received_address)    // The received address is this MCU's address
-                {
-                    ADDEN = 0;  // Clear ADDEN to receive data
-                }
+                addr_good = 1;  // Address is for this MCU
+                return 129;     // Address received
             }
-            else    // Address was correct, receive data until no more
+            else
             {
-                uart_send(RC1REG);
+                return 128;     // Not for this MCU, ignore
             }
-            // Need to figure out when to reset ADDEN
         }
+        else if (addr_good)
+        {
+            if (message == 126)
+            {
+                addr_good = 0;  // Message end, stop reading messages
+                return 130;     // End token received
+            }
+            else
+            {
+                return message; // Send the received message to the requester
+            }
+        }
+
+        return 128; // Ignore
+    }
+    else
+    {
+        return 131; // Frame error or overrun, message not good
+    }
 }
 
 void uart_send(uint16_t data)

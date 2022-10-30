@@ -17,5 +17,7 @@ void motor_set_speed(uint8_t speed);
 
 void motor_ground_cutoff(void);
 
+void motor_receive_uart(void);
+
 #endif	/* MOTOR_CONTROL_H */
 
