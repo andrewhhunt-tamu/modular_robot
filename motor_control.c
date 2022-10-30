@@ -140,7 +140,7 @@ void motor_receive_uart(void)
     }
     else if (message == 128)
     {
-        uart_send(199);
+        //uart_send(199); // Not for this MCU
     }
     else if (message == 131)
     {
@@ -170,11 +170,24 @@ void motor_receive_uart(void)
         {
             if (check == message)
             {
+                // Set the new state and speed
+
+                // If the new state or speed do not make sense,
+                // send an error back
+
+                // Set the check byte back to the RPi so it knows
+                // the message was received properly
+                uart_send(1);       // Address of RPi
+                while(!TRMT) {  }
                 uart_send(check);   // Message is good
+                while(!TRMT) {  }
+                uart_send(126);     // End of Frame
             }
             else
             {
+                uart_send(1);       // Address of RPi
                 uart_send(0xEA);    // Message bad
+                uart_send(126);     // End of Frame
             }
         }
     }

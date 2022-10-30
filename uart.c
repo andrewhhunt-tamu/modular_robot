@@ -50,6 +50,9 @@ void setup_uart(uint8_t address)
 
 uint8_t uart_receive(void)
 {
+    // Maybe should set a timer here to reset the receiver in case
+    // the end byte is corrupted and it never ends
+
     message = RC1REG;
 
     if ((FERR == 0) & (OERR == 0))  // No frame error or overrun
