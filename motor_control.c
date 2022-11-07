@@ -2,12 +2,13 @@
 #include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "motor_control.h"
 #include "pwm_funcs.h"
 #include "uart.h"
 
-#define _XTAL_FREQ 32000000
+
 /*
     AP = C4
     AN = C3
@@ -20,18 +21,6 @@
     Coast: all open
 
 */
-
-#define PI_ADDRESS 1
-
-#define NMOS1 RC1    // C1
-#define NMOS2 RC3    // C3
-
-#define FORWARD 1
-#define REVERSE 2
-#define COAST   3
-#define BRAKE   4
-uint8_t state;
-uint8_t update, message, new_state, new_speed, check;
 
 
 void motor_setup(void)
@@ -129,25 +118,32 @@ void motor_receive_uart(void)
 {
     message = uart_receive();
 
-    if (message == 129)
+    if (message == ADDRESS_GOOD)
     {
         update = 1;      // Address good, updating state
     }
-    else if (message == 130)
+    else if (message == ADDRESS_BAD)
     {
+        // Do nothing
+    }
+    else if (message == ERROR)
+    {
+        // An error has occurred, ask for a new message
+        uint8_t data[1];
+        data[0] = ERROR;
+
+        uart_send_frame(PI_ADDRESS, data, 1);
         update = 0;     // Message over
         new_state = 0;  // Reset new state variable
         new_speed = 0;
         check = 0;
     }
-    else if (message == 128)
+    else if (message == END_OF_FRAME)
     {
-        //uart_send(199); // Not for this MCU
-    }
-    else if (message == 131)
-    {
-        // An error has occurred, ask for a new message
-        uart_send(198);
+        update = 0;     // Message over
+        new_state = 0;  // Reset new state variable
+        new_speed = 0;
+        check = 0;
     }
     else
     {
@@ -179,18 +175,20 @@ void motor_receive_uart(void)
 
                 // Set the check byte back to the RPi so it knows
                 // the message was received properly
-                uart_send(128 + PI_ADDRESS);    // Address of RPi
-                while(!TRMT) {  }               // Wait until transmission is done
-                uart_send(check);               // Message is good
-                while(!TRMT) {  }               // Wait until transmission is done
-                uart_send(126);                 // End of Frame
+
+                uint8_t return_data[1];
+                return_data[0] = check;
+
+                uart_send_frame(PI_ADDRESS, return_data, 1);
             }
             else
             {
-                uart_send(1);       // Address of RPi
-                uart_send(0xEA);    // Message bad
-                uart_send(126);     // End of Frame
+                uint8_t return_data[1];
+                return_data[0] = 0xEA;
+
+                uart_send_frame(PI_ADDRESS, return_data, 1);
             }
         }
     }
+    
 }

@@ -2,6 +2,7 @@
 #include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define _XTAL_FREQ 32000000
 
@@ -13,9 +14,6 @@
     Page 231 for baud rate generator values
 
 */
-
-uint8_t mcu_address, recv_address, message, addr_good = 0;
-
 
 void setup_uart(uint8_t address)
 {
@@ -61,11 +59,11 @@ uint8_t uart_receive(void)
             if (mcu_address == recv_address)
             {
                 addr_good = 1;  // Address is for this MCU
-                return 129;     // Address received
+                return ADDRESS_GOOD;     // Address received
             }
             else
             {
-                return 128;     // Not for this MCU, ignore
+                return ADDRESS_BAD;     // Not for this MCU, ignore
             }
         }
         else if (addr_good)
@@ -73,7 +71,7 @@ uint8_t uart_receive(void)
             if (message == 126)
             {
                 addr_good = 0;  // Message end check addr in further messages
-                return 130;     // End token received
+                return END_OF_FRAME;     // End token received
             }
             else
             {
@@ -81,15 +79,30 @@ uint8_t uart_receive(void)
             }
         }
 
-        return 128; // Ignore
+        return ADDRESS_BAD; // Ignore
     }
     else
     {
-        return 131; // Frame error or overrun, message not good
+        return ERROR; // Frame error or overrun, message not good
     }
 }
 
-void uart_send(uint8_t data)
+// Edit this to accept char array and length
+void uart_send_byte(uint8_t data)
 {
     TX1REG = data;   // Send data byte
+}
+
+void uart_send_frame(uint8_t address, const uint8_t * data, uint8_t length)
+{
+    while(!TRMT) {  }
+    TX1REG = 128 + address;
+    while (length)
+    {
+        while(!TRMT) {  }
+        TX1REG = *(data++);
+        length--;
+    }
+    while(!TRMT) {  }
+    TX1REG = END_TOKEN;
 }
