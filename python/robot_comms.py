@@ -9,12 +9,14 @@ class robot_comms:
         
         
     def send_frame(self, address, data):
+        # Takes data frame and address and input, constructs frame to send
+        # over UART
         # Types of frames
         # Motor frame - 3 data bytes: state, speed, check
         # Sensor frame
         # Arm frame?
         # This function just sends the bytes, expects caller to
-        # properly format frame
+        # properly format data
         
         # Construct frame
         frame = [128 + address]
@@ -29,6 +31,8 @@ class robot_comms:
         self.ser.write(frame_bytes)
         
     def receive_frame(self, timeout=1000000):
+        # Receives data frame, strips address and end bytes, returns data array
+
         data = []
         start_time = time.time_ns()
         

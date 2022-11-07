@@ -46,10 +46,12 @@
 #include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "pwm_funcs.h"
 #include "motor_control.h"
 #include "uart.h"
+#include "led_test.h"
 
 #define _XTAL_FREQ 32000000
 
@@ -79,10 +81,11 @@
 #define MOTOR 1
 #define ARM 2
 #define SENSOR 3
+#define TEST 4
 
 // Set module type and MCU address
-uint8_t module_type = MOTOR;
-#define MCU_ADDRESS 3
+uint8_t module_type = TEST;
+#define MCU_ADDRESS 5
 
 int main(int argc, char** argv) {
     // Interrupt setup
@@ -102,23 +105,30 @@ int main(int argc, char** argv) {
     SLRCONC = 0x00;
     TRISC = 0x00;   // set all c outputs to 0
 
-    motor_setup();
-    motor_forward(30);
+    if (module_type == MOTOR)
+    {
+        motor_setup();
+    }
+    else if (module_type == TEST)
+    {
+        // do nothing
+    }
+    
 
     setup_uart(MCU_ADDRESS); // set up UART with address
     //uart_send(0x35);   // Transmit 0x135 as a test
     
     while(1)
     {
-        RC0 = 1;
-        motor_forward(65);
+        //RC0 = 1;
+        //motor_forward(65);
 
         //uart_send(0x17);   // Transmit 0x135 as a test
 
         __delay_ms(1000);
         
-        RC0 = 0;
-        motor_reverse(45);
+        //RC0 = 0;
+        //motor_reverse(45);
         __delay_ms(1000);
 
         
@@ -140,6 +150,10 @@ void __interrupt() uart_int(void)
         if (module_type == MOTOR)
         {
             motor_receive_uart();
+        }
+        else if (module_type == TEST)
+        {
+            led_receive_uart();
         }
         
     }
