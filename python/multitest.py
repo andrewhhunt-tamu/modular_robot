@@ -10,5 +10,6 @@ while state != 'q':
     state = int(state)
     
     comms.send_frame(state, [1])
+    print(comms.receive_frame()[0])
     
     state = input('Address to toggle: ')

@@ -2,7 +2,7 @@ import robot_comms
 
 comms = robot_comms.robot_comms("/dev/ttyS0", 115200)
 
-address = 3
+address = 5
 state = int(input('Motor state: '))
 speed = int(input('Motor speed: '))
 check = state ^ speed

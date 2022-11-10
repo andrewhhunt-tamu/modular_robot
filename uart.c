@@ -29,7 +29,9 @@ void setup_uart(uint8_t address)
     BRG16 = 1;      // 16 bit baud rate generator
 
     // Transmit
-    RA5PPS = 0x05;  // Transmit pin
+    TRISA5 = 1;
+    RA5PPS = 0x00;
+    //RA5PPS = 0x05;  // Transmit pin
     TX9 = 0;        // 8 bit transmission
     SCKP = 0;       // Set clock polarity
     TXEN = 1;       // Enable transmission
@@ -46,7 +48,7 @@ void setup_uart(uint8_t address)
 uint8_t uart_receive(void)
 {
     // Maybe should set a timer here to reset the receiver in case
-    // the end byte is corrupted and it never ends
+    // the end byte is corrupted or not received
 
     message = RC1REG;
 
@@ -87,15 +89,19 @@ uint8_t uart_receive(void)
     }
 }
 
-// Edit this to accept char array and length
+// Need to have transmit disabled until ready to send
 void uart_send_byte(uint8_t data)
 {
     TX1REG = data;   // Send data byte
 }
 
+
+// Upload this to other MCUs
 void uart_send_frame(uint8_t address, const uint8_t * data, uint8_t length)
 {
+    
     while(!TRMT) {  }
+    RA5PPS = 0x05;  // Set port A5 to be TX
     TX1REG = 128 + address;
     while (length)
     {
@@ -105,4 +111,6 @@ void uart_send_frame(uint8_t address, const uint8_t * data, uint8_t length)
     }
     while(!TRMT) {  }
     TX1REG = END_TOKEN;
+    while(!TRMT) {  }
+    RA5PPS = 0x00;  // Set port A5 back to high impedance
 }

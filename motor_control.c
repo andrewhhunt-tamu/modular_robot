@@ -120,7 +120,17 @@ void motor_receive_uart(void)
 
     if (message == ADDRESS_GOOD)
     {
-        update = 1;      // Address good, updating state
+        if (update == 1) // never received end of frame
+        {
+            new_state = 0;
+            new_speed = 0;
+            check = 0;
+        }
+        else 
+        {
+            update = 1;      // Address good, updating state
+        }
+        
     }
     else if (message == ADDRESS_BAD)
     {
@@ -140,7 +150,12 @@ void motor_receive_uart(void)
     }
     else if (message == END_OF_FRAME)
     {
-        update = 0;     // Message over
+        if (update == 1) // Update never finished
+        {
+            uint8_t data[1];
+            data[0] = 0xEA;
+            uart_send_frame(PI_ADDRESS, data, 1);
+        }
         new_state = 0;  // Reset new state variable
         new_speed = 0;
         check = 0;
@@ -180,6 +195,8 @@ void motor_receive_uart(void)
                 return_data[0] = check;
 
                 uart_send_frame(PI_ADDRESS, return_data, 1);
+
+                update = 0;
             }
             else
             {

@@ -40,11 +40,12 @@ class robot_comms:
         
         while 1:
             if (time.time_ns() - start_time) > timeout:
-                print('Timed out: ', timeout, ' ', (time.time_ns() - start_time))
+                print('Timed out. Address byte receieved: ', address_good, ' | Num data bytes received: ', len(data))
                 break
             
             if self.ser.in_waiting > 0:
                 new_byte = int.from_bytes(self.ser.read(), 'big')
+                #print(new_byte)
                 if address_good:
                     if new_byte == 126:
                         total_time = time.time_ns() - start_time

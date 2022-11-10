@@ -51,6 +51,7 @@
 #include "pwm_funcs.h"
 #include "motor_control.h"
 #include "uart.h"
+#include "sensor.h"
 #include "led_test.h"
 
 #define _XTAL_FREQ 32000000
@@ -84,7 +85,7 @@
 #define TEST 4
 
 // Set module type and MCU address
-uint8_t module_type = TEST;
+uint8_t module_type = SENSOR;
 #define MCU_ADDRESS 5
 
 int main(int argc, char** argv) {
@@ -109,6 +110,10 @@ int main(int argc, char** argv) {
     {
         motor_setup();
     }
+    else if (module_type == SENSOR)
+    {
+        sensor_setup();
+    }
     else if (module_type == TEST)
     {
         // do nothing
@@ -116,7 +121,6 @@ int main(int argc, char** argv) {
     
 
     setup_uart(MCU_ADDRESS); // set up UART with address
-    //uart_send(0x35);   // Transmit 0x135 as a test
     
     while(1)
     {
@@ -125,11 +129,16 @@ int main(int argc, char** argv) {
 
         //uart_send(0x17);   // Transmit 0x135 as a test
 
-        __delay_ms(1000);
+        __delay_ms(10);
         
         //RC0 = 0;
         //motor_reverse(45);
-        __delay_ms(1000);
+        //__delay_ms(1000);
+
+        if (module_type == SENSOR)
+        {
+            sensor_pulse();
+        }
 
         
     }
@@ -151,16 +160,37 @@ void __interrupt() uart_int(void)
         {
             motor_receive_uart();
         }
+        else if (module_type == SENSOR)
+        {
+            sensor_receive_uart();
+        }
         else if (module_type == TEST)
         {
             led_receive_uart();
         }
         
     }
+    else if (TMR1IF == 1)   // Timer 1 interrupt
+    {
+        // Timer overflow has hit
+        // reset TMR1IF
+        // reset enable
+        // increment microseconds
+
+        microseconds += 1;
+        sensor_timer_reset();
+
+        
+    }
+    else if (IOCCF2 == 1)     // External interrupt pin
+    {
+        IOCCF2 = 0; // Reset C2 interrupt
+        sensor_read();
+    }
     else
     {
-        //TX1IF = 0;
-        //uart_send(0x55);
+        // check for int pin INTF
+        // check for timer interrupt, increment microseconds
     }
 
     
