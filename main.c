@@ -170,21 +170,9 @@ void __interrupt() uart_int(void)
         }
         
     }
-    else if (TMR1IF == 1)   // Timer 1 interrupt
+    else if (IOCCF1 == 1)     // External interrupt pin
     {
-        // Timer overflow has hit
-        // reset TMR1IF
-        // reset enable
-        // increment microseconds
-
-        microseconds += 1;
-        sensor_timer_reset();
-
-        
-    }
-    else if (IOCCF2 == 1)     // External interrupt pin
-    {
-        IOCCF2 = 0; // Reset C2 interrupt
+        IOCCF1 = 0; // Reset C2 interrupt
         sensor_read();
     }
     else

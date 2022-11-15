@@ -19,15 +19,11 @@ void sensor_setup(void)
     // INTEDG 1
     // INTE 1
     // 
-    TRISC2 = 1;             // Port C2 input
-    //INTPPSbits.PIN = 2;     // Pin 2
-    //INTPPSbits.PORT = 2;    // Port C
+    TRISC1 = 1;             // Port C2 input
 
     IOCIE = 1;
-    IOCCN2 = 1;
-    IOCCP2 = 1;
-    //INTEDG = 1;
-    //INTE = 0;
+    IOCCN1 = 1;
+    IOCCP1 = 1;
 
     // set up timer
     T1CONbits.CKPS = 3;     // 1:8 prescaler
@@ -58,9 +54,9 @@ void sensor_pulse(void)
     // Hold pin high for 10us
     // Set up capture with timer?
 
-    RC1 = 1;
+    RC2 = 1;
     __delay_us(10);
-    RC1 = 0;
+    RC2 = 0;
 
     // set up interrupt for response on rising edge
     //INTE = 1;       // Enable interrupt pin

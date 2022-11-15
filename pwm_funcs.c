@@ -2,6 +2,7 @@
 #include <pic16f15224.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define _XTAL_FREQ 32000000
 
