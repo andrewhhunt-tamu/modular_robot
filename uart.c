@@ -56,6 +56,10 @@ uint8_t uart_receive(void)
     {    
         if (((message & 128) >> 7) == 1)    // Check if this is an address byte
         {
+
+            // Need to check if still waiting for previous end of frame
+
+
             recv_address = message & 127;   // remove msb to get address
 
             if (mcu_address == recv_address)

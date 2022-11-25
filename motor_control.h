@@ -15,7 +15,8 @@
 #define REVERSE 2
 #define COAST   3
 #define BRAKE   4
-uint8_t state;
+#define MOTOR_STATUS    5
+uint8_t current_state, current_speed;
 uint8_t update, message, new_state, new_speed, check;
 
 void motor_setup(void);

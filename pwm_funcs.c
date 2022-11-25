@@ -49,7 +49,7 @@ void setup_pwm(uint8_t channel)
     }
     else if (channel == 2)
     {
-        TRISC4 = 0;     // C4 is set to output
+        TRISC4 = 0;     // C3 is set to output
         PWM4EN = 1;     // PWM4 enabled
         PWM4OUT = 1;    // PWM4 output
         PWM4POL = 1;    // PWM4 polarity normal

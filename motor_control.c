@@ -20,6 +20,13 @@
     Brake: C3 & C1
     Coast: all open
 
+
+    PROTOTYPE CIRCUIT:
+    C1 = left n
+    C2 = left p
+    C3 = right n
+    c4 = right p
+
 */
 
 
@@ -45,14 +52,14 @@ void motor_setup(void)
     motor_coast();
 
     update = 0;
-    new_state = 0;
-    new_speed = 0;
+    new_state = 150;
+    new_speed = 150;
     check = 0;
 }
 
 void motor_forward(uint8_t speed)
 {
-    if (state == FORWARD)
+    if (current_state == FORWARD)
     {
         set_pwm_duty_cycle(1, speed);
     }
@@ -65,14 +72,16 @@ void motor_forward(uint8_t speed)
         __delay_us(100);    // Delay to ensure all the transistors are off
 
         pwm_on(1, speed);
-        RC3 = 0;
-        state = FORWARD;
+        RC3 = 1;
+        current_state = FORWARD;
     }
+
+    current_speed = speed;
 }
 
 void motor_reverse(uint8_t speed)
 {
-    if (state == REVERSE)
+    if (current_state == REVERSE)
     {
         set_pwm_duty_cycle(2, speed);
     }
@@ -85,9 +94,11 @@ void motor_reverse(uint8_t speed)
         __delay_us(100);    // Delay to ensure all the transistors are off
 
         pwm_on(2, speed);
-        RC1 = 0;
-        state = REVERSE;
+        RC1 = 1;
+        current_state = REVERSE;
     }
+    
+    current_speed = speed;
 }
 
 void motor_coast(void)
@@ -95,7 +106,8 @@ void motor_coast(void)
     pwm_off(1);
     pwm_off(2);
     motor_ground_cutoff();
-    state = COAST;
+    current_state = COAST;
+    current_speed = 0;
 }
 
 void motor_brake(void)
@@ -105,7 +117,8 @@ void motor_brake(void)
     pwm_off(2);
     RC1 = 1;
     RC3 = 1;
-    state = BRAKE;
+    current_state = BRAKE;
+    current_speed = 0;
 }
 
 void motor_ground_cutoff(void)
@@ -122,8 +135,8 @@ void motor_receive_uart(void)
     {
         if (update == 1) // never received end of frame
         {
-            new_state = 0;
-            new_speed = 0;
+            new_state = 150;
+            new_speed = 150;
             check = 0;
         }
         else 
@@ -144,8 +157,8 @@ void motor_receive_uart(void)
 
         uart_send_frame(PI_ADDRESS, data, 1);
         update = 0;     // Message over
-        new_state = 0;  // Reset new state variable
-        new_speed = 0;
+        new_state = 150;  // Reset new state variable
+        new_speed = 150;
         check = 0;
     }
     else if (message == END_OF_FRAME)
@@ -156,13 +169,13 @@ void motor_receive_uart(void)
             data[0] = 0xEA;
             uart_send_frame(PI_ADDRESS, data, 1);
         }
-        new_state = 0;  // Reset new state variable
-        new_speed = 0;
+        new_state = 150;  // Reset new state variable
+        new_speed = 150;
         check = 0;
     }
     else
     {
-        if (new_state == 0)
+        if (new_state == 150)
         {
             new_state = message;
             // check message value and set the state
@@ -170,7 +183,7 @@ void motor_receive_uart(void)
             // TESTING
             //uart_send(message);
         }
-        else if (new_speed == 0)
+        else if (new_speed == 150)
         {
             // state already set, set speed
             new_speed = message;
@@ -191,10 +204,34 @@ void motor_receive_uart(void)
                 // Set the check byte back to the RPi so it knows
                 // the message was received properly
 
-                uint8_t return_data[1];
-                return_data[0] = check;
+                uint8_t return_data[3];
 
-                uart_send_frame(PI_ADDRESS, return_data, 1);
+                if (new_state == MOTOR_STATUS)
+                {
+                    
+                    return_data[0] = check;
+                    return_data[1] = current_state;
+                    return_data[2] = current_speed;
+
+                    uart_send_frame(PI_ADDRESS, return_data, 3);
+                }
+                else
+                {
+                    if ((new_state == FORWARD) && (new_speed < 100))
+                    {
+                        motor_forward(new_speed);
+                    } else if ((new_state == REVERSE) && (new_speed < 100))
+                    {
+                        motor_reverse(new_speed);
+                    } else if (new_state == COAST)
+                    {
+                        motor_coast();
+                    }
+
+                    return_data[0] = check;
+
+                    uart_send_frame(PI_ADDRESS, return_data, 1);
+                }
 
                 update = 0;
             }
