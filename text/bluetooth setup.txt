@@ -1,11 +1,11 @@
-Edit the bluetooth service:
+1. Edit the bluetooth service:
 sudo nano /etc/systemd/system/dbus-org.bluez.service
 
 Modify ExecStart line to look like the following:
 ExecStart=/usr/lib/bluetooth/bluetoothd -C
 ExecStartPost=/usr/bin/sdptool add SP
 
-Edit the rfcomm service:
+2. Edit the rfcomm service:
 sudo nano /etc/systemd/system/rfcomm.service
 
 Paste the following:
@@ -20,10 +20,11 @@ ExecStart=/usr/bin/rfcomm watch hci0 1 getty rfcomm0 115200 vt100 -a *USERNAME*
 [Install]
 WantedBy=multi-user.target
 
-Enable the rfcomm service
+3. Enable the rfcomm service
 sudo systemctl enable rfcomm
 
-reboot the raspberry pi
+4. reboot the raspberry pi
 
-Connect the Raspberry Pi and the computer via bluetooth.
-In mobaxterm, create a new session over serial and select a com port named "Standard Serial over Bluetooth". It will likely be the second one. Set the baud rate to 115200 and connect.
+5. Connect the Raspberry Pi and the computer via bluetooth.
+
+6. In mobaxterm, create a new session over serial and select a com port named "Standard Serial over Bluetooth". It will likely be the second one. Set the baud rate to 115200 and connect. If the first one doesn't work, try another com port

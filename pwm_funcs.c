@@ -14,10 +14,14 @@ uint8_t ch2_duty = 0;
 void setup_timer(void)
 {
     // Timer2 setup
-    T2PR = 0xFF;                 // Load T2PR register with period of 255
-    TMR2IF = 0;                  // Clear TMR2IF flag
-    T2CLKCON = 0b00000001;       // Set clock source to Fosc/4
-    T2CON = 0b10000000;          // Set Timer2 to be on with no prescaler or postscaler
+    T2PR = 0xFF;              // Load T2PR register with period of 255
+    TMR2IF = 0;               // Clear TMR2IF flag
+    T2CLKCON = 0b00000001;    // Set clock source to Fosc/4
+    T2CONbits.CKPS = 0b110;   // 1:64 prescaler
+    T2CONbits.OUTPS = 0;      // no postscaler
+    T2CONbits.ON = 1;         // Timer on
+    
+
     while(TMR2IF != 1) {}         // Wait until TMR2IF is set
 }
 

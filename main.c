@@ -85,7 +85,7 @@
 #define TEST 4
 
 // Set module type and MCU address
-uint8_t module_type = MOTOR;
+uint8_t module_type = SENSOR;
 #define MCU_ADDRESS 5
 
 int main(int argc, char** argv) {
@@ -109,6 +109,8 @@ int main(int argc, char** argv) {
     if (module_type == MOTOR)
     {
         motor_setup();
+        
+        motor_reverse(35);
     }
     else if (module_type == SENSOR)
     {

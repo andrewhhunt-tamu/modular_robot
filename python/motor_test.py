@@ -5,7 +5,7 @@ comms = robot_comms.robot_comms("/dev/ttyS0", 115200)
 address = 5
 
 while 1:
-    state = input('-----\n1 - Forward | 2 - Reverse | 3 - reverse | 5- current state\nq = quit\nMotor state: ')
+    state = input('-----\n1 - Forward | 2 - Reverse | 3 - Coast | 5- current state\nq = quit\nMotor state: ')
 
     if state == 'q':
         break

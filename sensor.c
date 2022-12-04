@@ -80,7 +80,7 @@ void sensor_read(void)
     }
     else if (state == READING)
     {
-        T1CONbits.ON = 0;       // Have timer be off
+        T1CONbits.ON = 0;       // Turn timer off
         //INTE = 0;               // disable interrupt pin
         
         microseconds = ((TMR1H << 8) + TMR1L) / 4;
@@ -120,6 +120,7 @@ void sensor_receive_uart(void)
     }
     else
     {
+        // Unused for now
         if (message == READ_SENSOR)
         {
 
