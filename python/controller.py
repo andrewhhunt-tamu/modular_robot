@@ -82,11 +82,11 @@ def robot_controller(data_queue, comms_queue):
             command_return = 0
             direction = command[0].lower()
             
+            state = ''
+            
             if direction == 'forward' or direction == 'f':
-                state = ''
                 command_return = rb.move_robot(rb.MOTOR_FORWARD, int(command[1]))
             elif direction == 'back' or direction == 'b':
-                state = ''
                 command_return = rb.move_robot(rb.MOTOR_REVERSE, int(command[1]))
             elif direction == 'right' or direction == 'r':
                 state = 'Rotating right at ' + command[1] + '%'
@@ -100,20 +100,32 @@ def robot_controller(data_queue, comms_queue):
             else:
                 state = 'error'
                 
+            
+                
             if rb.state == rb.STOPPED:
                 state = 'Stopped'
             elif rb.state == rb.MOVING:
-                if rb.direction == rb.MOTOR_FORWARD:
+                if rb.direction == rb.FORWARD:
                     state = 'Moving forward at {}%'.format(rb.speed)
-                elif rb.direction == rb.MOTOR_REVERSE:
+                elif rb.direction == rb.REVERSE:
                     state = 'Moving backward at {}%'.format(rb.speed)
-                
-            if command_return == BAD_DIRECTION:
-                state += ' | Bad direction'
-            elif command_return == BAD_SPEED:
-                state += ' | Bad speed'
-            elif command_return == BAD_RESPONSE:
-                state += ' | Not all motors responded'
+                else:
+                    state = 'ERROR DIRECTION: {}'.format(rb.direction)
+            else:
+                state = 'ERROR'
+                    
+            if command_return[0] != 1:
+                if command_return[0] == rb.BAD_DIRECTION:
+                    state += ' | Bad direction'
+                elif command_return[0] == rb.BAD_SPEED:
+                    state += ' | Bad speed'
+                else:
+                    non_respond = []
+                    for x in range(1,5):
+                        if command_return[x] != 1:
+                            non_respond.append(x)
+                    
+                    state += ' | non-responding motors: {}'.format(non_respond)
             
             print_state(state)
             print_cmd_recv()

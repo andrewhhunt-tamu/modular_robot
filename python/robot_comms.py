@@ -44,7 +44,6 @@ class robot_comms:
         # properly format data
         
         
-        
         # Construct frame
         frame = [128 + address]
         
@@ -59,6 +58,8 @@ class robot_comms:
         
     def receive_frame(self, frame_type, timeout=1000000):
         # Receives data frame, strips address and end bytes, returns data array
+        
+        
         start_time = time.time_ns()
         frame = []
         
@@ -85,9 +86,12 @@ class robot_comms:
             else:
                 #this is not an address byte, dump until an EOF is found
                 new_byte = 0
+                eof_start = time.time_ns()
                 while new_byte != 126:
                     new_byte = int.from_bytes(self.ser.read(), 'big')
-                    
+                    if (time.time_ns() - start_time) > timeout:
+                        # Not finding an EOF, just give up
+                        break    
         
         if len(frame) < frame_type:
             # Not enough bytes received

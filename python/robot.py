@@ -4,101 +4,106 @@ from time import sleep
 from datetime import datetime
 
 # Module addresses
-motor_front_left = 1
+motor_front_left =  1
 motor_front_right = 2
-motor_rear_left = 3
-motor_rear_right = 4
-arm_lift = 5
-arm_gripper = 6
-sensor_left = 7
-sensor_right = 8
+motor_rear_left =   3
+motor_rear_right =  4
+arm_lift =          5
+arm_gripper =       6
+sensor_left =       7
+sensor_right =      8
 
 
 
 class robot:
     def __init__(self, comms_queue : multiprocessing.Queue) -> None:
-        #motor directions
+        # Motor directions
         self.MOTOR_FORWARD = 1
         self.MOTOR_REVERSE = 2
         self.MOTOR_COAST = 3
 
-        #states
-        self.STOPPED = 0
-        self.MOVING = 1
-        self.ROTATING = 2
-        self.FORWARD = 3
-        self.REVERSE = 4
-        self.CLOCKWISE = 5
-        self.COUNTERCLOCKWISE = 6
+        # States
+        self.STOPPED = 1
+        self.MOVING = 2
+        self.ROTATING = 3
+        self.FORWARD = 5
+        self.REVERSE = 6
+        self.CLOCKWISE = 7
+        self.COUNTERCLOCKWISE = 8
+        self.ERROR = 9
+        
+        # Errors
+        self.BAD_DIRECTION =    -1
+        self.BAD_SPEED =        -2
+        self.UART_ERROR =       -4
         
         self.comms = robot_comms.robot_comms("/dev/ttyS0", 115200, 33)
         self.state = self.STOPPED
         self.direction = self.STOPPED
         self.speed = 0
         self.comms_queue = comms_queue
-        
-        
+
+  
+    def motor_frame_to_dict(self, frame):
+        return {
+            'address'   : frame[0],
+            'check'     : frame[1],
+            'direction' : frame[2],
+            'speed'     : frame[3]
+        }
         
 
-    def uart_txrx():
-        pass
-    
-    
-    def send_motor_commands(self, left_dir, right_dir, speed, left_check, right_check):
-        self.comms.send_frame(motor_front_left, [left_dir, speed, left_check])
+    def send_motor_commands(self, send_data):
+        self.comms.flush_input()
+        
+        self.comms.send_frame(motor_front_left, [send_data['leftdir'], send_data['speed'], send_data['leftcheck']])
         sleep(0.002)
-        self.comms.send_frame(motor_front_right, [right_dir, speed, right_check])
+        self.comms.send_frame(motor_front_right, [send_data['rightdir'], send_data['speed'], send_data['rightcheck']])
         sleep(0.002)
-        self.comms.send_frame(motor_rear_left, [left_dir, speed, left_check])
+        self.comms.send_frame(motor_rear_left, [send_data['leftdir'], send_data['speed'], send_data['leftcheck']])
         sleep(0.002)
-        self.comms.send_frame(motor_rear_right, [right_dir, speed, right_check])
+        self.comms.send_frame(motor_rear_right, [send_data['rightdir'], send_data['speed'], send_data['rightcheck']])
         
         # Grab responses
         responses = []
-        response_recieved = [0, 0, 0, 0]
         
         for x in range(4):
             responses.append(self.comms.receive_frame(self.comms.MOTOR_FRAME))
             
+        return responses
+        return 1
+  
+    
+    def check_responses(self, sent_data, received_data):
         
-        
-        for x in range(4):
-            if responses[x][0] == (x + 1):
-                response_recieved[x] = 1
-            else:
-                self.stop_robot()
-        
+        response_recieved = [0, 0, 0, 0]
                 
-        return response_recieved 
-        
-        for response in responses:
-            if response[0] < 0:
-                return -3
-            elif response[0] == motor_front_left or response[0] == motor_rear_left:
-                if response[1] == left_check:
-                    if response[2] == left_dir:
-                        if response[3] == speed:
-                            response_recieved[response[0]-1] = 1
-                        else:
-                            return -2
-                    else:
-                        return -1
-            elif response[0] == motor_front_right or response[0] == motor_rear_right:
-                if response[1] == right_check:
-                    if response[2] == right_dir:
-                        if response[3] == speed:
-                            response_recieved[response[0]-1] = 1
-                        else:
-                            return -2
-                    else:
-                        return -1
-            else:
-                return -3
+        for frame in received_data:
             
-        for response in response_recieved:
-            if response != 1:
-                return -3
+            # If the sent and received ata matches up, set a motor's response
+            # to 1
+            if frame[0] > 0:
+                frame_dict = self.motor_frame_to_dict(frame)
             
+                if frame_dict['address'] == 1 or frame_dict['address'] == 3:
+                    # Check the left motors
+                    if frame_dict['direction'] == sent_data['leftdir']:
+                        # Check the direction
+                        if frame_dict['speed'] == sent_data['speed']:
+                            # Check the check value
+                            if frame_dict['check'] == sent_data['leftcheck']:
+                                response_recieved[frame_dict['address'] - 1] = 1
+                
+                if frame_dict['address'] == 2 or frame_dict['address'] == 4:
+                    # Check the right motors
+                    if frame_dict['direction'] == sent_data['rightdir']:
+                        # Check the direction
+                        if frame_dict['speed'] == sent_data['speed']:
+                            # Check the check value
+                            if frame_dict['check'] == sent_data['rightcheck']:
+                                response_recieved[frame_dict['address'] - 1] = 1
+                                
+        return response_recieved
         return 1
 
     def stop_robot(self):
@@ -106,15 +111,34 @@ class robot:
         speed = 1
         check = direction ^ speed
         
-        status = self.send_motor_commands(direction, direction, speed, check, check)
+        sent_data = {
+           'leftdir'    : direction,
+           'rightdir'   : direction,
+           'speed'      : speed,
+           'leftcheck'  : check,
+           'rightcheck' : check
+        }
         
-        self.state = self.STOPPED
-        self.speed = 0
+        responses = self.send_motor_commands(sent_data)
         
-        if status == -2:
-            return 1
+        checked_responses = self.check_responses(sent_data, responses)
+        
+        comm_error = False
+        
+        for resp in checked_responses:
+            if resp != 1:
+                comm_error = True
+                
+        if comm_error:
+            self.state = self.ERROR
+            self.direction = self.ERROR
+            self.speed = self.ERROR
+            return [self.UART_ERROR] + checked_responses
         else:
-            return status
+            self.state = self.STOPPED
+            self.speed = 0
+            self.direction = self.STOPPED
+            return [1]
 
         
 
@@ -138,13 +162,6 @@ class robot:
             f.close()
         '''
         
-        '''
-        # Need to flush out comms queue
-        while not self.comms_queue.empty():
-            self.comms_queue.get()
-        '''
-        
-        
         if direction == self.MOTOR_FORWARD:
             left_direction = self.MOTOR_FORWARD
             right_direction = self.MOTOR_REVERSE
@@ -152,21 +169,45 @@ class robot:
             left_direction = self.MOTOR_REVERSE
             right_direction = self.MOTOR_FORWARD
         else:
-            return -1
+            return [self.BAD_DIRECTION]
 
         if speed > 100 or speed < 0:
-            return -2
+            return [self.BAD_SPEED]
         
         left_check = left_direction ^ speed
         right_check = right_direction ^ speed
         
-        status = self.send_motor_commands(left_direction, right_direction, speed, left_check, right_check)
+        sent_data = {
+           'leftdir'    : left_direction,
+           'rightdir'   : right_direction,
+           'speed'      : speed,
+           'leftcheck'  : left_check,
+           'rightcheck' : right_check
+        }
         
-        self.state = self.MOVING
-        self.speed = speed
-        self.direction = direction
+        responses = self.send_motor_commands(sent_data)
         
-        return status
+        checked_responses = self.check_responses(sent_data, responses)
+        
+        comm_error = False
+        
+        for resp in checked_responses:
+            if resp != 1:
+                comm_error = True
+                
+        if comm_error:
+            self.stop_robot()
+            return [self.UART_ERROR] + checked_responses
+        else:
+            self.state = self.MOVING
+            self.speed = speed
+            if direction == self.MOTOR_FORWARD:
+                self.direction = self.FORWARD
+            elif direction == self.MOTOR_REVERSE:
+                self.direction = self.REVERSE
+            return [1]
+        
+        return 1
         
         
         # testing return
@@ -209,14 +250,18 @@ class robot:
         elif direction == self.MOTOR_REVERSE:
             rotate_direction = self.MOTOR_REVERSE
         else:
-            return -1
+            return self.BAD_DIRECTION
         
         if speed > 100 or speed < 0:
-            return -2
+            return self.BAD_SPEED
         
         check = direction ^ speed
         
-        return self.send_motor_commands(rotate_direction, rotate_direction, speed, check, check)
+        status = self.send_motor_commands(rotate_direction, rotate_direction, speed, check, check)
+        
+        checked_status = self.check_responses()
+        
+        return 1
 
     def move_arm(self, angle):
         pass
