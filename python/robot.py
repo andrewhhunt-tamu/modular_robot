@@ -54,14 +54,16 @@ class robot:
         
 
     def send_motor_commands(self, send_data):
+        # Clear any data in the serial input
         self.comms.flush_input()
         
+        # Send frames to each motor
         self.comms.send_frame(motor_front_left, [send_data['leftdir'], send_data['speed'], send_data['leftcheck']])
-        sleep(0.002)
+        sleep(0.001)
         self.comms.send_frame(motor_front_right, [send_data['rightdir'], send_data['speed'], send_data['rightcheck']])
-        sleep(0.002)
+        sleep(0.001)
         self.comms.send_frame(motor_rear_left, [send_data['leftdir'], send_data['speed'], send_data['leftcheck']])
-        sleep(0.002)
+        sleep(0.001)
         self.comms.send_frame(motor_rear_right, [send_data['rightdir'], send_data['speed'], send_data['rightcheck']])
         
         # Grab responses
@@ -80,8 +82,8 @@ class robot:
                 
         for frame in received_data:
             
-            # If the sent and received ata matches up, set a motor's response
-            # to 1
+            # If the sent and received ata matches up, 
+            # set a motor's response to 1
             if frame[0] > 0:
                 frame_dict = self.motor_frame_to_dict(frame)
             
@@ -107,6 +109,9 @@ class robot:
         return 1
 
     def stop_robot(self):
+        '''
+            Sends the coast command to every motor to stop the robot 
+        '''
         direction = self.MOTOR_COAST
         speed = 1
         check = direction ^ speed
@@ -133,6 +138,14 @@ class robot:
             self.state = self.ERROR
             self.direction = self.ERROR
             self.speed = self.ERROR
+            
+            with open('rblog.tx', 'w') as f:
+                for item in sent_data:
+                    f.write(str(sent_data[item]))
+                    f.write('\n')
+                for resp in responses:
+                    f.write(str(resp))
+                    f.write('\n')
             return [self.UART_ERROR] + checked_responses
         else:
             self.state = self.STOPPED
@@ -142,30 +155,14 @@ class robot:
 
         
 
-    def move_robot(self, direction, speed):
+    def move_robot(self, direction, speed):      
         '''
-            Returns 1 if all the motors in the correct mode
-            -1 if direction value is bad
-            -2 if speed value is bad
-            -3 if not all the motors responded
-
-            Check the direction and speed that is requested
-            if those values are good, send them to the motors
-            Check the returned values from the motors to see if they are in the correct mode
-            If any are wrong, tell all motors to stop
+            Sends commands to each motor the move the robot forward or backward
         '''
-        '''
-        with open('rblog.txt', 'w') as f:
-            
-            current_time = datetime.now().strftime("%H:%M:%S")
-            f.write('Time: {}'.format(current_time))
-            f.close()
-        '''
-        
-        if direction == self.MOTOR_FORWARD:
+        if direction == self.FORWARD:
             left_direction = self.MOTOR_FORWARD
             right_direction = self.MOTOR_REVERSE
-        elif direction == self.MOTOR_REVERSE:
+        elif direction == self.REVERSE:
             left_direction = self.MOTOR_REVERSE
             right_direction = self.MOTOR_FORWARD
         else:
@@ -201,53 +198,23 @@ class robot:
         else:
             self.state = self.MOVING
             self.speed = speed
-            if direction == self.MOTOR_FORWARD:
+            if direction == self.FORWARD:
                 self.direction = self.FORWARD
-            elif direction == self.MOTOR_REVERSE:
+            elif direction == self.REVERSE:
                 self.direction = self.REVERSE
             return [1]
         
         return 1
-        
-        
-        # testing return
-        if status > 0:
-            return 'direction: {}, speed: {}'.format(direction, speed)
-
-        return 1
-        
-        # need to add in receiving the frames to check
-        '''
-        # check comms queue
-        responses = []
-        all_responded = 1
-        
-        for x in range(4):
-            if self.comms_queue.empty():
-                all_responded = 0
-                break
-
-            responses.append(self.comms_queue.get(block=True, timeout=0.01))
-        
-        if all_responded:
-            for response in responses:
-                pass
-        else:
-            self.stop_robot()
-            return -3
-        ''' 
-
-        return 1
+    
 
     def rotate_robot(self, direction, speed):
         '''
-            Similar to the move robot function, but in this case spins the motors so that
-            the robot will spin instead of move
+            Sends commands to each motor to rotate the robot left or right
         '''
         
-        if direction == self.MOTOR_FORWARD:
+        if direction == self.CLOCKWISE:
             rotate_direction = self.MOTOR_FORWARD
-        elif direction == self.MOTOR_REVERSE:
+        elif direction == self.COUNTERCLOCKWISE:
             rotate_direction = self.MOTOR_REVERSE
         else:
             return self.BAD_DIRECTION
@@ -257,9 +224,35 @@ class robot:
         
         check = direction ^ speed
         
-        status = self.send_motor_commands(rotate_direction, rotate_direction, speed, check, check)
+        sent_data = {
+           'leftdir'    : rotate_direction,
+           'rightdir'   : rotate_direction,
+           'speed'      : speed,
+           'leftcheck'  : check,
+           'rightcheck' : check
+        }
         
-        checked_status = self.check_responses()
+        responses = self.send_motor_commands(sent_data)
+        
+        checked_responses = self.check_responses(sent_data, responses)
+        
+        comm_error = False
+        
+        for resp in checked_responses:
+            if resp != 1:
+                comm_error = True
+                
+        if comm_error:
+            self.stop_robot()
+            return [self.UART_ERROR] + checked_responses
+        else:
+            self.state = self.ROTATING
+            self.speed = speed
+            if direction == self.CLOCKWISE:
+                self.direction = self.CLOCKWISE
+            elif direction == self.COUNTERCLOCKWISE:
+                self.direction = self.COUNTERCLOCKWISE
+            return [1]
         
         return 1
 
