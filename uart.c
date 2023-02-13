@@ -50,46 +50,55 @@ uint8_t uart_receive(void)
     // Maybe should set a timer here to reset the receiver in case
     // the end byte is corrupted or not received
 
+    uint8_t message, recv_address;
+    
     message = RC1REG;
 
     if ((FERR == 0) & (OERR == 0))  // No frame error or overrun
     {    
         if (((message & 128) >> 7) == 1)    // Check if this is an address byte
         {
-
             // Need to check if still waiting for previous end of frame
-
 
             recv_address = message & 127;   // remove msb to get address
 
-            if (mcu_address == recv_address)
+            if (!eof_received)
             {
-                addr_good = 1;  // Address is for this MCU
-                return ADDRESS_GOOD;     // Address received
+                return FRAME_ERROR;         // A new address has been sent but missing eof
+            }
+            else if (mcu_address == recv_address)
+            {
+                addr_good = 1;              // Address is for this MCU
+                eof_received = 0;           // New frame, so no eof yet
+                return ADDRESS_GOOD;        // Address received
             }
             else
             {
-                return ADDRESS_BAD;     // Not for this MCU, ignore
+                addr_good = 0;              
+                return ADDRESS_BAD;         // Not for this MCU, ignore
             }
         }
         else if (addr_good)
         {
             if (message == 126)
             {
-                addr_good = 0;  // Message end check addr in further messages
-                return END_OF_FRAME;     // End token received
+                addr_good = 0;              // Message end check addr in further messages
+                eof_received = 1;           // EOF has been received, safe to start new frames
+                return END_OF_FRAME;        // End token received
             }
             else
             {
-                return message; // Send the received message to the requester
+                return message;             // Send the received message to the requester
             }
         }
 
-        return ADDRESS_BAD; // Ignore
+        addr_good = 0;                      
+        return ADDRESS_BAD;                 // Ignore
     }
     else
     {
-        return ERROR; // Frame error or overrun, message not good
+        addr_good = 0;
+        return ERROR;                       // Frame error or overrun, message not good
     }
 }
 
@@ -100,21 +109,37 @@ void uart_send_byte(uint8_t data)
 }
 
 
-// Upload this to other MCUs
 void uart_send_frame(uint8_t address, const uint8_t * data, uint8_t length)
 {
-    
-    while(!TRMT) {  }
-    RA5PPS = 0x05;  // Set port A5 to be TX
-    TX1REG = 128 + address;
+    GIE = 0;                    // Disable interrupts
+    while(!TRMT) {  }           // Wait for the transmit register to empty
+    RA5PPS = 0x05;              // Set port A5 to be TX
+    TX1REG = 128 + address;     // Transmit the address
     while (length)
     {
-        while(!TRMT) {  }
-        TX1REG = *(data++);
+        while(!TRMT) {  }       // Wait for the transmit register to empty
+        TX1REG = *(data++);     // Transmit the next byte
         length--;
     }
-    while(!TRMT) {  }
-    TX1REG = END_TOKEN;
-    while(!TRMT) {  }
-    RA5PPS = 0x00;  // Set port A5 back to high impedance
+    while(!TRMT) {  }           // Wait for the transmit register to empty
+    TX1REG = END_TOKEN;         // Send the frame end token
+    while(!TRMT) {  }           // Wait for the transmit register to empty
+    RA5PPS = 0x00;              // Set port A5 back to high impedance
+    GIE = 1;                    // Enable interrupts
+}
+
+uint8_t uart_get_address(void)
+{
+    return mcu_address;
+}
+
+void uart_reset(void)
+{
+    addr_good = 0;
+    eof_received = 1;
+    // clear out receive FIFO
+    uint8_t msg;
+    msg = RC1REG;
+    msg = RC1REG;
+    msg = RC1REG;
 }

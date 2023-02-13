@@ -20,13 +20,6 @@
     Brake: C3 & C1
     Coast: all open
 
-
-    PROTOTYPE CIRCUIT:
-    C1 = left n
-    C2 = left p
-    C3 = right n
-    c4 = right p
-
 */
 
 
@@ -35,26 +28,17 @@ void motor_setup(void)
     
     RC1 = 0;
     RC2 = 0;
-    RC3 = 0;
-    RC4 = 0;
     RC1PPS = 0x00;  // C1 source is Latch C1
     RC2PPS = 0x00;  // C2 source is Latch C2
-    RC3PPS = 0x00;  // C3 source is Latch C3
-    RC4PPS = 0x00;  // C4 source is Latch C4
     TRISC1 = 0;     // C1 is set to output
     TRISC2 = 0;     // C2 is set to output
-    TRISC3 = 0;     // C3 is set to output
-    TRISC4 = 0;     // C4 is set to output
     motor_ground_cutoff();
     setup_timer();
     setup_pwm(1);
     setup_pwm(2);
     motor_coast();
 
-    update = 0;
-    new_state = 150;
-    new_speed = 150;
-    check = 0;
+    reset_status();
 }
 
 void motor_forward(uint8_t speed)
@@ -65,14 +49,13 @@ void motor_forward(uint8_t speed)
     }
     else
     {
-        motor_ground_cutoff();
+        //motor_ground_cutoff();
         pwm_off(1);
         pwm_off(2);
         
-        __delay_us(100);    // Delay to ensure all the transistors are off
+        __delay_us(20);    // Delay to ensure all the transistors are off
 
         pwm_on(1, speed);
-        RC3 = 1;
         current_state = FORWARD;
     }
 
@@ -87,14 +70,13 @@ void motor_reverse(uint8_t speed)
     }
     else
     {
-        motor_ground_cutoff();
+        //motor_ground_cutoff();
         pwm_off(1);
         pwm_off(2);
 
-        __delay_us(100);    // Delay to ensure all the transistors are off
+        __delay_us(20);    // Delay to ensure all the transistors are off
 
         pwm_on(2, speed);
-        RC1 = 1;
         current_state = REVERSE;
     }
     
@@ -105,9 +87,10 @@ void motor_coast(void)
 {
     pwm_off(1);
     pwm_off(2);
-    motor_ground_cutoff();
+    //motor_ground_cutoff();
     current_state = COAST;
-    current_speed = 0;
+    current_speed = 1;
+    // Setting speed to 1, because the UART doesn't seem to like 0s
 }
 
 void motor_brake(void)
@@ -115,8 +98,6 @@ void motor_brake(void)
     // Need to find out if brake force goes up with more voltage
     pwm_off(1);
     pwm_off(2);
-    RC1 = 1;
-    RC3 = 1;
     current_state = BRAKE;
     current_speed = 0;
 }
@@ -127,120 +108,160 @@ void motor_ground_cutoff(void)
     RC3 = 0;
 }
 
+    /*
+    * 4 fields for return_data:
+    * 1. this address
+    * 2. check value
+    * 3. current direction
+    * 4. current speed
+    */
+void send_error(uint8_t error_no)
+{
+    // Need to set up error types
+    uint8_t return_data[4];
+    return_data[0] = uart_get_address();
+    return_data[1] = error_no;
+
+    uart_send_frame(PI_ADDRESS, return_data, 2);
+}
+
+void send_status(void)
+{
+    uint8_t return_data[4];
+
+    return_data[0] = uart_get_address();
+    return_data[1] = check;
+    return_data[2] = current_state;
+    return_data[3] = current_speed;
+
+    uart_send_frame(PI_ADDRESS, return_data, 4);
+}
+
+void reset_status(void)
+{
+    new_state = 150;
+    new_speed = 150;
+    check = 0;
+    update = 0;
+    eof_recv = 1;
+    uart_reset();
+}
+
 void motor_receive_uart(void)
 {
-    message = uart_receive();
+    /*
+        Receive entire frame including EOF before sending
+        send during EOF check
+        Need error/state variable maybe
+    */
+   // This should be a state machine
+
+    uint8_t message = uart_receive();
 
     if (message == ADDRESS_GOOD)
     {
-        if (update == 1) // never received end of frame
+        if (update == 1 || eof_recv == 0) // never received end of frame
         {
-            new_state = 150;
-            new_speed = 150;
-            check = 0;
+            reset_status();
+            send_error(MISSING_EOF);
         }
         else 
         {
             update = 1;      // Address good, updating state
+            eof_recv = 0;
         }
         
     }
     else if (message == ADDRESS_BAD)
     {
-        // Do nothing
+        // The frame is not addressed to this MCU, do nothing
+        // If this is seen before EOF, send an error
+        
+        if (update == 1 || eof_recv == 0)
+        {
+            // New frame but never saw EOF from last frame
+            reset_status();
+            send_error(BAD_DATA);
+        }
     }
     else if (message == ERROR)
     {
         // An error has occurred, ask for a new message
-        uint8_t data[1];
-        data[0] = ERROR;
-
-        uart_send_frame(PI_ADDRESS, data, 1);
-        update = 0;     // Message over
-        new_state = 150;  // Reset new state variable
-        new_speed = 150;
-        check = 0;
+        reset_status();
+        send_error(UART_ERROR);
     }
     else if (message == END_OF_FRAME)
     {
         if (update == 1) // Update never finished
         {
-            uint8_t data[1];
-            data[0] = 0xEA;
-            uart_send_frame(PI_ADDRESS, data, 1);
+            send_error(MISSING_DATA);
+        } 
+        else // Update finished, send status
+        {
+            if (new_state == MOTOR_STATUS)
+            {
+                send_status();
+            }
+            else if (new_state == FORWARD)
+            {
+                // Set to the forward state with a valid speed
+                motor_forward(new_speed);
+                send_status();
+            }
+            else if (new_state == REVERSE)
+            {
+                // Set to the reverse state with a valid speed
+                motor_reverse(new_speed);
+                send_status();
+            }
+            else if (new_state == COAST)
+            {
+                // Turn all the motors off
+                motor_coast();
+                send_status();
+            }
+            else
+            {
+                // Something went wrong and the message makes no sense, request a new frame
+                send_error(BAD_DATA);
+            }
         }
-        new_state = 150;  // Reset new state variable
-        new_speed = 150;
-        check = 0;
+        reset_status(); // Reset variables
     }
-    else
+    else if (update == 1)
     {
         if (new_state == 150)
         {
+            // First byte is the new state, will be checked at the end
             new_state = message;
-            // check message value and set the state
-
-            // TESTING
-            //uart_send(message);
         }
         else if (new_speed == 150)
         {
-            // state already set, set speed
-            new_speed = message;
-            check = new_state ^ new_speed;
-
-            // TESTING
-            //uart_send(message ^ new_state);
+            // state already set, check and set speed
+            if ((message < 100) && (message > 0))
+            {
+                new_speed = message;
+            }
+            else 
+            {
+                // Speed is bad, reset and inform the controller
+                reset_status();
+                send_error(BAD_DATA);
+            }
         }
         else
         {
+            check = new_state ^ new_speed;
+
             if (check == message)
             {
-                // Set the new state and speed
-
-                // If the new state or speed do not make sense,
-                // send an error back
-
-                // Set the check byte back to the RPi so it knows
-                // the message was received properly
-
-                uint8_t return_data[3];
-
-                if (new_state == MOTOR_STATUS)
-                {
-                    
-                    return_data[0] = check;
-                    return_data[1] = current_state;
-                    return_data[2] = current_speed;
-
-                    uart_send_frame(PI_ADDRESS, return_data, 3);
-                }
-                else
-                {
-                    if ((new_state == FORWARD) && (new_speed < 100))
-                    {
-                        motor_forward(new_speed);
-                    } else if ((new_state == REVERSE) && (new_speed < 100))
-                    {
-                        motor_reverse(new_speed);
-                    } else if (new_state == COAST)
-                    {
-                        motor_coast();
-                    }
-
-                    return_data[0] = check;
-
-                    uart_send_frame(PI_ADDRESS, return_data, 1);
-                }
-
                 update = 0;
             }
             else
             {
-                uint8_t return_data[1];
-                return_data[0] = 0xEA;
-
-                uart_send_frame(PI_ADDRESS, return_data, 1);
+                // Check sent doesn't match, reset and inform the controller
+                reset_status();
+                send_error(BAD_DATA);
             }
         }
     }

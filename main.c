@@ -16,7 +16,7 @@
 // CONFIG2
 #pragma config MCLRE = EXTMCLR  // Master Clear Enable bit (If LVP = 0, MCLR pin is MCLR; If LVP = 1, RA3 pin function is MCLR)
 #pragma config PWRTS = PWRT_16  // Power-up Timer Selection bits (PWRT set at 16 ms)
-#pragma config WDTE = OFF       // WDT Operating Mode bits (WDT disabled; SEN is ignored)
+#pragma config WDTE = OFF    // WDT Operating Mode bits (WDT disabled; SEN is ignored)
 #pragma config BOREN = ON       // Brown-out Reset Enable bits (Brown-out Reset Enabled, SBOREN bit is ignored)
 #pragma config BORV = LO        // Brown-out Reset Voltage Selection bit (Brown-out Reset Voltage (VBOR) set to 1.9V)
 #pragma config PPS1WAY = ON     // PPSLOCKED One-Way Set Enable bit (The PPSLOCKED bit can be set once after an unlocking sequence is executed; once PPSLOCKED is set, all future changes to PPS registers are prevented)
@@ -56,37 +56,14 @@
 
 #define _XTAL_FREQ 32000000
 
-/*
-    UART RS-485 pg 226
-    PWM pg 215
-
-    Capture/Compare for sensor?
-*/
-
-/*
-    Clear bit 3: reg & ~0b00000100
-    set bit 3: reg | 0b00000100
-
-*/
-
-/*
-    PWM setup:
-    setup_timer();              // Set up timer 2 for PWM
-    setup_pwm(1);               // Set up the PWM for channel 1
-    set_pwm_duty_cycle(1, 45);  // Set the duty cycle to 45
-    pwm_on(1);                  // Turn channel 1 on
-*/
-
-
-
 #define MOTOR 1
 #define ARM 2
 #define SENSOR 3
-#define TEST 4
+#define TEST 10
 
 // Set module type and MCU address
-uint8_t module_type = SENSOR;
-#define MCU_ADDRESS 5
+uint8_t module_type = ARM;
+#define MCU_ADDRESS 4
 
 int main(int argc, char** argv) {
     // Interrupt setup
@@ -109,12 +86,15 @@ int main(int argc, char** argv) {
     if (module_type == MOTOR)
     {
         motor_setup();
-        
-        motor_reverse(35);
     }
     else if (module_type == SENSOR)
     {
         sensor_setup();
+    }
+    else if (module_type == ARM)
+    {
+        motor_setup();
+        motor_forward(10);
     }
     else if (module_type == TEST)
     {
@@ -123,6 +103,10 @@ int main(int argc, char** argv) {
     
 
     setup_uart(MCU_ADDRESS); // set up UART with address
+
+    uint16_t arm_pwm = 10;
+    uint8_t up = 1;
+    uint16_t delay_time = 200;
     
     while(1)
     {
@@ -131,7 +115,7 @@ int main(int argc, char** argv) {
 
         //uart_send(0x17);   // Transmit 0x135 as a test
 
-        __delay_ms(10);
+        //__delay_ms(10);
         
         //RC0 = 0;
         //motor_reverse(45);
@@ -145,7 +129,31 @@ int main(int argc, char** argv) {
         {
             sensor_pulse();
         }
+        else if (module_type == ARM)
+        {
+            if (arm_pwm > 800)
+            {
+                up = 0;
+            }
+            else if (arm_pwm < 20)
+            {
+                up = 1;
+            }
 
+            if (up == 1)
+            {
+                arm_pwm += 2;
+            }
+            else
+            {
+                arm_pwm -= 2;
+            }
+
+            //PWM3DC = arm_pwm << 6;
+            set_pwm_raw_duty_cycle(1, arm_pwm);
+            __delay_ms(30);
+        }
+        //CLRWDT();
         
     }
 
@@ -164,7 +172,9 @@ void __interrupt() uart_int(void)
         // Read RC1REG to clear the flag
         if (module_type == MOTOR)
         {
-            motor_receive_uart();
+            //GIE = 0;                    // Disable interrupts
+            motor_receive_uart();       // Receive the frame
+            //GIE = 1;                    // Enable interrupts
         }
         else if (module_type == SENSOR)
         {

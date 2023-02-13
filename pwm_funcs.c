@@ -14,12 +14,16 @@ uint8_t ch2_duty = 0;
 void setup_timer(void)
 {
     // Timer2 setup
-    T2PR = 0xFF;              // Load T2PR register with period of 255
-    TMR2IF = 0;               // Clear TMR2IF flag
-    T2CLKCON = 0b00000001;    // Set clock source to Fosc/4
-    T2CONbits.CKPS = 0b110;   // 1:64 prescaler
-    T2CONbits.OUTPS = 0;      // no postscaler
-    T2CONbits.ON = 1;         // Timer on
+    T2PR = 0xFA;                // Load T2PR register with period of 250
+    //T2PR = 0x9B;                 // Load T2PR register with 155
+    TMR2IF = 0;                 // Clear TMR2IF flag
+    T2CLKCON = 0b00000001;      // Set clock source to Fosc/4
+    //T2CLKCON = 0b00000101;      // Set clock source to MFINTOSC
+    T2CONbits.CKPS = 0b110;     // 1:64 prescaler
+    //T2CONbits.CKPS = 0b110;     // 1:16 prescaler
+    T2CONbits.OUTPS = 0b0000;   // 1:1 postscaler
+    //T2CONbits.OUTPS = 0b1001;   // 1:10 postscaler
+    T2CONbits.ON = 1;           // Timer on
     
 
     while(TMR2IF != 1) {}         // Wait until TMR2IF is set
@@ -37,8 +41,8 @@ void setup_pwm(uint8_t channel)
     }
     else if (channel == 2)
     {
-        TRISC4 = 1;         // Set Port C4 to tristate
-        RC4PPS = 0x04;      // Set PortC4 to be PWM4
+        TRISC1 = 1;         // Set Port C1 to tristate
+        RC1PPS = 0x04;      // Set PortC1 to be PWM4
         PWM4CON = 0x00;     // Clear the PWM4CON register
     }
     
@@ -53,7 +57,7 @@ void setup_pwm(uint8_t channel)
     }
     else if (channel == 2)
     {
-        TRISC4 = 0;     // C3 is set to output
+        TRISC1 = 0;     // C1 is set to output
         PWM4EN = 1;     // PWM4 enabled
         PWM4OUT = 1;    // PWM4 output
         PWM4POL = 1;    // PWM4 polarity normal
@@ -64,6 +68,21 @@ void setup_pwm(uint8_t channel)
 void set_pwm_duty_cycle(uint8_t channel, uint32_t percent)
 {
     uint32_t duty_cycle = 1024 - (percent * 1024 / 100);    // Get inverse percentage of 1024
+    //uint32_t duty_cycle = 512 - (percent * 512 / 100);    // Get inverse percentage of 512
+    
+    if (channel == 1)
+    {
+        PWM3DC = (uint16_t) duty_cycle  << 6;   // Shift left 6 bits to set PWM3DC
+    } else if (channel == 2) 
+    {
+        PWM4DC = (uint16_t) duty_cycle  << 6;   // Shift left 6 bits to set PWM4DC
+    }
+}
+
+void set_pwm_raw_duty_cycle(uint8_t channel, uint16_t duty_cycle)
+{
+    //uint32_t duty_cycle = 1024 - (percent * 1024 / 100);    // Get inverse percentage of 1024
+    //uint32_t duty_cycle = 512 - (percent * 512 / 100);    // Get inverse percentage of 512
     
     if (channel == 1)
     {
@@ -90,7 +109,7 @@ void pwm_on(uint8_t channel, uint8_t duty_cycle)
     } else if (channel == 2)
     {
         set_pwm_duty_cycle(channel, duty_cycle);
-        RC4PPS = 0x04;      // Set PortC4 to be PWM4
+        RC1PPS = 0x04;      // Set PortC1 to be PWM4
     }
     
 }
@@ -102,8 +121,8 @@ void pwm_off(uint8_t channel)
         RC2 = 0;            // Set output high
         RC2PPS = 0x00;      // Set C2 to be digital ouput
     } else if (channel == 2) {
-        RC4 = 0;            // Set output high
-        RC4PPS = 0x00;      // Set C4 to be digital output
+        RC1 = 0;            // Set output high
+        RC1PPS = 0x00;      // Set C4 to be digital output
         
     }
 }
