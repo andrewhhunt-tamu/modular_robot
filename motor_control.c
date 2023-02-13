@@ -38,6 +38,7 @@ void motor_setup(void)
     setup_pwm(2);
     motor_coast();
 
+    motor_comm_state = IDLE_STATE;
     reset_status();
 }
 
@@ -123,6 +124,7 @@ void send_error(uint8_t error_no)
     return_data[1] = error_no;
 
     uart_send_frame(PI_ADDRESS, return_data, 2);
+    reset_status();
 }
 
 void send_status(void)
@@ -135,6 +137,7 @@ void send_status(void)
     return_data[3] = current_speed;
 
     uart_send_frame(PI_ADDRESS, return_data, 4);
+    reset_status();
 }
 
 void reset_status(void)
@@ -142,128 +145,116 @@ void reset_status(void)
     new_state = 150;
     new_speed = 150;
     check = 0;
-    update = 0;
-    eof_recv = 1;
     uart_reset();
+}
+
+uint8_t valid_data(void)
+{
+    return (((new_speed < 100) && (new_speed > 0)) & (check == (new_state ^ new_speed)));
 }
 
 void motor_receive_uart(void)
 {
-    /*
-        Receive entire frame including EOF before sending
-        send during EOF check
-        Need error/state variable maybe
-    */
-   // This should be a state machine
+    uint8_t motor_message = uart_receive();
 
-    uint8_t message = uart_receive();
-
-    if (message == ADDRESS_GOOD)
+    switch (motor_comm_state)
     {
-        if (update == 1 || eof_recv == 0) // never received end of frame
-        {
-            reset_status();
-            send_error(MISSING_EOF);
-        }
-        else 
-        {
-            update = 1;      // Address good, updating state
-            eof_recv = 0;
-        }
+        case IDLE_STATE:
+            switch (motor_message)
+            {
+                case UART_ADDRESS_GOOD:
+                    motor_comm_state = RECEIVE_DATA_STATE;  // Good address, receive data
+                    break;
+
+                case UART_ADDRESS_BAD:                      // Not for this MCU
+                    break;
+                
+                default:
+                    break;
+            }
+            break;
+        case RECEIVE_DATA_STATE:
+            switch (motor_message)
+            {
+                case UART_ADDRESS_GOOD:
+                case UART_ADDRESS_BAD:
+                case UART_END_OF_FRAME:
+                case UART_IGNORE:
+                case UART_ERROR:
+                    // None of these messages should be received here
+                    motor_comm_state = IDLE_STATE;          // Reset to idle
+                    reset_status();                         // Reset all variables
+                    send_error(MISSING_DATA);               // Request new data
+                    break;
+                
+                default:
+                    if (new_state == 150)
+                    {
+                        new_state = motor_message;
+                    }
+                    else if (new_speed == 150)
+                    {
+                        new_speed = motor_message;
+                    }
+                    else
+                    {
+                        check = motor_message;
+                        motor_comm_state = EOF_STATE;
+                    }
+                    break;
+            }
+            break;
+
+        case EOF_STATE:
+                if (motor_message == UART_END_OF_FRAME)
+                {
+                    motor_comm_state = IDLE_STATE;          // No matter what, go back to idle
+                    switch (new_state)
+                    {
+                        case FORWARD:
+                            if (valid_data())
+                            {
+                                motor_forward(new_speed);
+                                send_status();
+                            }
+                            break;
+                        
+                        case REVERSE:
+                            if (valid_data())
+                            {
+                                motor_reverse(new_speed);
+                                send_status();
+                            }
+                            break;
+
+                        case COAST:
+                            if (valid_data())
+                            {
+                                motor_coast();
+                                send_status();
+                            }
+                            break;
+                        
+                        case MOTOR_STATUS:
+                            send_status();
+                            break;
+                    
+                        default:
+                            reset_status();
+                            send_error(BAD_DATA);
+                            break;
+                    }
+                }
+                else
+                {
+                    motor_comm_state = IDLE_STATE;
+                    reset_status();
+                    send_error(MISSING_EOF);
+                }
+                break;
         
+        default:
+            uart_reset();
+            break;
     }
-    else if (message == ADDRESS_BAD)
-    {
-        // The frame is not addressed to this MCU, do nothing
-        // If this is seen before EOF, send an error
-        
-        if (update == 1 || eof_recv == 0)
-        {
-            // New frame but never saw EOF from last frame
-            reset_status();
-            send_error(BAD_DATA);
-        }
-    }
-    else if (message == ERROR)
-    {
-        // An error has occurred, ask for a new message
-        reset_status();
-        send_error(UART_ERROR);
-    }
-    else if (message == END_OF_FRAME)
-    {
-        if (update == 1) // Update never finished
-        {
-            send_error(MISSING_DATA);
-        } 
-        else // Update finished, send status
-        {
-            if (new_state == MOTOR_STATUS)
-            {
-                send_status();
-            }
-            else if (new_state == FORWARD)
-            {
-                // Set to the forward state with a valid speed
-                motor_forward(new_speed);
-                send_status();
-            }
-            else if (new_state == REVERSE)
-            {
-                // Set to the reverse state with a valid speed
-                motor_reverse(new_speed);
-                send_status();
-            }
-            else if (new_state == COAST)
-            {
-                // Turn all the motors off
-                motor_coast();
-                send_status();
-            }
-            else
-            {
-                // Something went wrong and the message makes no sense, request a new frame
-                send_error(BAD_DATA);
-            }
-        }
-        reset_status(); // Reset variables
-    }
-    else if (update == 1)
-    {
-        if (new_state == 150)
-        {
-            // First byte is the new state, will be checked at the end
-            new_state = message;
-        }
-        else if (new_speed == 150)
-        {
-            // state already set, check and set speed
-            if ((message < 100) && (message > 0))
-            {
-                new_speed = message;
-            }
-            else 
-            {
-                // Speed is bad, reset and inform the controller
-                reset_status();
-                send_error(BAD_DATA);
-            }
-        }
-        else
-        {
-            check = new_state ^ new_speed;
-
-            if (check == message)
-            {
-                update = 0;
-            }
-            else
-            {
-                // Check sent doesn't match, reset and inform the controller
-                reset_status();
-                send_error(BAD_DATA);
-            }
-        }
-    }
-    
 }

@@ -51,8 +51,8 @@
 #include "pwm_funcs.h"
 #include "motor_control.h"
 #include "uart.h"
-#include "sensor.h"
-#include "led_test.h"
+//#include "sensor.h"
+//#include "led_test.h"
 
 #define _XTAL_FREQ 32000000
 
@@ -62,8 +62,8 @@
 #define TEST 10
 
 // Set module type and MCU address
-uint8_t module_type = ARM;
-#define MCU_ADDRESS 4
+uint8_t module_type = MOTOR;
+#define MCU_ADDRESS 2
 
 int main(int argc, char** argv) {
     // Interrupt setup
@@ -89,7 +89,7 @@ int main(int argc, char** argv) {
     }
     else if (module_type == SENSOR)
     {
-        sensor_setup();
+        //sensor_setup();
     }
     else if (module_type == ARM)
     {
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
         //uart_send(0x17);   // Transmit 0x135 as a test
 
-        //__delay_ms(10);
+        __delay_ms(10);
         
         //RC0 = 0;
         //motor_reverse(45);
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
         }
         else if (module_type == SENSOR)
         {
-            sensor_pulse();
+            //sensor_pulse();
         }
         else if (module_type == ARM)
         {
@@ -178,18 +178,18 @@ void __interrupt() uart_int(void)
         }
         else if (module_type == SENSOR)
         {
-            sensor_receive_uart();
+            //sensor_receive_uart();
         }
         else if (module_type == TEST)
         {
-            led_receive_uart();
+            //led_receive_uart();
         }
         
     }
     else if (IOCCF1 == 1)     // External interrupt pin
     {
         IOCCF1 = 0; // Reset C2 interrupt
-        sensor_read();
+        //sensor_read();
     }
     else
     {
