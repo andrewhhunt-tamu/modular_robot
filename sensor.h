@@ -20,11 +20,24 @@
 #define READ_WAIT 2
 #define READING 3
 
-uint8_t message, state;
-uint16_t microseconds, distance;
+// UART States
+#define IDLE_STATE            1
+#define RECEIVE_DATA_STATE    2
+#define EOF_STATE             3
+
+#define SENSOR_READ     1
+#define SENSOR_SEND     2
+
+uint8_t sensor_comm_state, message, state, check, request_type;
+uint16_t microseconds, distance, wait_timeout;
 
 void sensor_setup(void);
+
+void send_error(uint8_t error_no);
+void send_status(void);
+void reset_status(void);
 void sensor_receive_uart(void);
+
 void sensor_pulse(void);
 void sensor_read(void);
 
